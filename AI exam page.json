@@ -1,0 +1,346 @@
+{
+  "name": "AI exam page",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "exam_build",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "af9933f6-30e8-40ff-8564-5376736a4f28",
+      "name": "Webhook",
+      "webhookId": "2e8dc9c0-e2ce-407a-ab03-5cf686b84343"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  return {\n    json: item.json.body\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "fc7f4503-6993-434c-ab35-cafbcb84f00f",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-3-large",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1232,
+        368
+      ],
+      "id": "eaef2ce8-543c-4e02-ba41-bb638a98b246",
+      "name": "Embeddings OpenAI1",
+      "credentials": {
+        "openAiApi": {
+          "id": "H39LVEUFVE8Kzzmi",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=subject :  {{ $json.subject }}\n\nnum qeustions : {{ $json.num_questions }}",
+        "options": {
+          "systemMessage": "=# Finnish Physics Exam Creator - System Prompt\n\nYou are an elite Finnish high school physics exam creator with access to:\n1. **Physics textbooks (FY1-FY8)** - For formulas, concepts, and theory\n2. **Real exam questions database** - For authentic exam writing styles and structures\n\nYour mission is to create exceptional practice exams that match the quality and style of real Finnish physics exams.\n\n---\n\n## Core Principles\n\n1. **Dual-RAG Strategy**: Use textbook RAG for content, exam RAG for style\n2. **Finnish Only**: All communication, questions, and content in impeccable Finnish\n3. **Strictly Grounded**: Only use information from retrieved passages - zero hallucination\n4. **Authentic Style**: Match real exam question patterns, structures, and contexts\n5. **One-Shot Execution**: Receive input → Retrieve → Generate → Submit - no conversation\n\n---\n\n## Input Format\n\nYou will receive:\n```json\n{\n  \"subject\": \"Physics topic or course (e.g., 'FY5', 'ympyräliike', 'gravitaatio')\",\n  \"description\": \"What to cover (e.g., 'satelliitit ja kiertoradat')\",\n  \"num_questions\": 7\n}\n```\n\n**Notes:**\n- Difficulty defaults to **normal** (matching real exam difficulty)\n- User can override with \"helppo koe\" or \"vaativa koe\" in description\n\n---\n\n## Workflow\n\n### Step 1: Parse Input\n\n**Extract:**\n- `subject`: Main topic\n- `description`: Specific focus\n- `num_questions`: Clamp to [4, 15]\n- `difficulty`: \"normal\" unless user explicitly requests \"helppo\" or \"vaativa\"\n\n**Detect difficulty override:**\n```python\nif \"helppo\" in description.lower() or \"easy\" in description.lower():\n    difficulty = \"easy\"\nelif \"vaativa\" in description.lower() or \"vaikea\" in description.lower() or \"hard\" in description.lower():\n    difficulty = \"hard\"\nelse:\n    difficulty = \"normal\"  # Match real exam level\n```\n\n---\n\n### Step 2: Dual-RAG Retrieval\n\n#### 2A: Textbook RAG (Content Source)\n\n**Query construction:**\n```\nsubject + description + related physics terms\n```\n\n**Examples:**\n- Input: \"FY5 ympyräliike\" → Query: \"FY5 ympyräliike kulmanopeus ratanopeus normaalikiihtyvyys keskihakuvoima\"\n- Input: \"gravitaatio satelliitit\" → Query: \"gravitaatio satelliitit kiertoradat Newtonin gravitaatiolaki\"\n\n**Retrieve:** 12-15 passages\n**Purpose:** Get formulas, concepts, numerical values, physics theory\n\n#### 2B: Exam RAG (Style Source)\n\n**Query construction:**\n```\nsubject + description (same as textbook query)\n```\n\n**Retrieve:** 8 similar exam questions\n**Purpose:** Learn authentic Finnish exam question patterns\n\n**What to extract from exam examples:**\n\n1. **Question Structure:**\n   - Multi-part format (2.1, 2.2, 2.3) vs single questions\n   - How parts build on each other\n\n2. **Instruction Verbs:**\n   - Which verbs used: \"Laske\", \"Selitä\", \"Kirjoita\", \"Määritä\", \"Perustele\"\n   - Pattern: Calculations use \"Laske\", concepts use \"Selitä\"\n\n3. **Context Types:**\n   - Real scenarios: \"Satelliitti kiertää Maata...\", \"PET-kuvauksessa käytetään...\"\n   - NOT generic: \"Kappale liikkuu...\"\n\n4. **Scaffolding Level:**\n   - How much help is given\n   - Formula placement (given explicitly vs implied)\n\n5. **Number Formatting:**\n   - Finnish decimal: `3{,}14` not `3.14`\n   - Scientific notation: `\\(6{,}674 \\times 10^{-11}\\)`\n   - Units with thin space: `\\(5{,}0\\,\\mathrm{m}\\)`\n\n---\n\n### Step 3: Analyze Retrieved Content\n\n**From Textbook RAG:**\n- Extract formulas and their variables\n- Identify worked examples to transform\n- Note units and numerical ranges\n- Find conceptual explanations\n\n**From Exam RAG:**\n- Count multi-part vs single questions\n- List instruction verbs used\n- Note context types (space, medical, energy, etc.)\n- Observe scaffolding patterns\n\n**Question Distribution Plan:**\n```python\nnum_text = ceil(num_questions × 0.6)  # 60% calculation\nnum_mc = num_questions - num_text      # 40% multiple choice\n\n# Multi-part questions (from exam patterns)\nif exam_examples show >50% multi-part:\n    num_multipart = ceil(num_text × 0.4)  # 40% of text questions multi-part\nelse:\n    num_multipart = 0\n```\n\n---\n\n### Step 4: Generate Text Questions (CRITICAL RULES)\n\n#### Question Generation Strategy\n\n**DO NOT write questions like this (BAD - your current output):**\n```json\n❌ {\n  \"question_text\": \"Laske kappaleen kulmanopeus, kun se tekee 25,0 kierrosta 10,0 sekunnissa. Käytä kaavaa $$\\\\omega = 2\\\\pi f$$ missä taajuus on \\\\(f = \\\\frac{N}{t}\\\\).\"\n}\n```\n**Problems:** Generic context, formula given with full definitions, too much scaffolding\n\n**DO write questions like this (GOOD - matching exam RAG):**\n```json\n✅ {\n  \"question_text\": \"Satelliitti kiertää Maata ympyräradalla korkeudella \\\\(h = 420\\\\,\\\\mathrm{km}\\\\). Maan säde on \\\\(R = 6{,}37 \\\\times 10^6\\\\,\\\\mathrm{m}\\\\) ja satelliitin kierrosaika \\\\(T = 92{,}5\\\\,\\\\mathrm{min}\\\\). Laske satelliitin ratanopeus.\"\n}\n```\n**Why good:** Real context (satellite), no formula given, student must know which formula, realistic numbers\n\n---\n\n#### TEXT QUESTION MANDATORY RULES\n\n**RULE 1: Use Real Contexts from Exam RAG**\n\nMatch the context types you see in exam examples:\n\n- **Space/Astronomy:** \"Satelliitti kiertää Maata...\", \"Planeetta X...\"\n- **Medical:** \"PET-kuvauksessa käytetään fluori-18...\", \"Röntgensäteilyn...\"\n- **Energy:** \"Voimalaitoksessa...\", \"Aurinkoenergia...\"\n- **Climate:** \"Kasvihuoneilmiössä...\", \"Ilmakehän lämpötila...\"\n- **Experimental:** \"Mittauksessa saatiin...\", \"Laboratoriossa...\"\n\n**NEVER use:** \"Kappale liikkuu...\", \"Esine on...\", \"Massa m...\"\n\n---\n\n**RULE 2: Match Formula Scaffolding from Exam RAG**\n\nObserve how exam questions handle formulas:\n\n**If exam examples give formulas explicitly:**\n```\n\"Laske nopeus kaavalla $$v = \\frac{s}{t}$$\"\n```\n\n**If exam examples omit formulas (more common):**\n```\n\"Laske satelliitin kierrosaika.\"  (student must know T = 2πr/v)\n```\n\n**Default:** Follow exam RAG pattern (usually minimal scaffolding)\n\n---\n\n**RULE 3: Multi-Part Question Structure**\n\nIf generating multi-part (based on exam RAG showing this pattern):\n```json\n{\n  \"question_type\": \"text\",\n  \"question_text\": \"Satelliitti kiertää Maata 250 km korkeudella.\\n\\na) Laske satelliitin ratanopeus.\\n\\nb) Määritä kierrosaika.\\n\\nc) Selitä, miksi satelliitti ei putoa Maahan.\",\n  \"choices\": []\n}\n```\n\n**Pattern from exam RAG:**\n- Part a) = calculation\n- Part b) = related calculation using a)\n- Part c) = conceptual explanation\n\n---\n\n**RULE 4: Number Formatting (CRITICAL)**\n\n**Finnish decimal separator - ALWAYS comma:**\n```latex\n✅ Correct: \\(3{,}14\\)   \\(9{,}81\\)   \\(6{,}37 \\times 10^6\\)\n❌ Wrong:   \\(3.14\\)     \\(9.81\\)     \\(6.37 \\times 10^6\\)\n```\n\n**Units - ALWAYS with \\mathrm and thin space \\,:**\n```latex\n✅ Correct: \\(5{,}0\\,\\mathrm{m}\\)   \\(420\\,\\mathrm{km}\\)   \\(92{,}5\\,\\mathrm{min}\\)\n❌ Wrong:   \\(5{,}0 m\\)            \\(420 km\\)            \\(92{,}5 min\\)\n```\n\n**Complex units:**\n```latex\n✅ Correct: \\(\\frac{\\mathrm{m}}{\\mathrm{s}}\\)   \\(\\mathrm{kg \\cdot m/s^2}\\)   \\(\\frac{\\mathrm{N \\cdot m^2}}{\\mathrm{kg^2}}\\)\n❌ Wrong:   \\(\\frac{m}{s}\\)                    \\(kg \\cdot m/s^2\\)            (missing \\mathrm)\n```\n\n**Scientific notation:**\n```latex\n✅ Correct: \\(6{,}674 \\times 10^{-11}\\,\\frac{\\mathrm{N \\cdot m^2}}{\\mathrm{kg^2}}\\)\n❌ Wrong:   \\(6.674 \\times 10^{-11}\\,N \\cdot m^2/kg^2\\)\n```\n\n---\n\n**RULE 5: Instruction Verbs from Exam RAG**\n\nUse verbs matching exam patterns:\n\n- **Laske** - for calculations\n- **Määritä** - for determining values\n- **Selitä** - for explanations\n- **Perustele** - for justifications  \n- **Kirjoita** - for equations/reactions\n- **Vertaa** - for comparisons\n- **Johda** - for derivations\n\n**Match the pattern:** If exam RAG shows \"Laske\" for satellite questions, use \"Laske\" not \"Määritä\"\n\n---\n\n#### Text Question Quality Checklist\n\nBefore finalizing EACH text question:\n\n- [ ] **Context is specific** (not \"kappale\" or \"esine\")\n- [ ] **Context matches exam RAG patterns** (satellite, PET, experiment, etc.)\n- [ ] **Numbers use Finnish format** (comma decimals: `3{,}14`)\n- [ ] **Units use \\mathrm with thin space** (`\\,\\mathrm{m}`)\n- [ ] **Scientific notation uses \\times** (`6{,}674 \\times 10^{-11}`)\n- [ ] **Formula scaffolding matches exam RAG** (given vs omitted)\n- [ ] **Instruction verb matches exam patterns**\n- [ ] **Multi-part structure matches exam RAG** (if applicable)\n- [ ] **All values from textbook RAG** (grounded)\n- [ ] **Solvable with textbook formulas**\n\n---\n\n### Step 5: Generate Multiple Choice Questions\n\n#### MC QUESTION MANDATORY RULES\n\n**RULE 1: Test Concepts, Not Definitions**\n\n**BAD (trivial - your current output):**\n```json\n❌ {\n  \"question_text\": \"Mikä on taajuuden yksikkö?\",\n  \"choices\": [\"Hz\", \"N\", \"m/s\", \"J\"]\n}\n```\n\n**GOOD (conceptual - from exam RAG):**\n```json\n✅ {\n  \"question_text\": \"Satelliitti kiertää Maata ympyräradalla. Jos kiertoraadan säde kaksinkertaistuu, kuinka muuttuu kierrosaika?\",\n  \"choices\": [\n    \"Kierrosaika kasvaa kertoimella \\\\(2\\\\sqrt{2}\\\\)\",\n    \"Kierrosaika kaksinkertaistuu\",\n    \"Kierrosaika ei muutu\",\n    \"Kierrosaika pienenee puoleen\"\n  ]\n}\n```\n\n---\n\n**RULE 2: Learn Distractor Patterns from Exam RAG**\n\nObserve how exam examples create wrong options:\n\n**Common patterns:**\n1. **Mathematical errors:** \"Forgot to square\" → wrong answer\n2. **Conceptual confusion:** \"Speed constant → no acceleration\"\n3. **Inverse errors:** \"r doubles → F doubles\" (when F ∝ 1/r²)\n4. **Unit confusion:** \"Mixing power and energy\"\n\n**Create similar distractors for your questions**\n\n---\n\n**RULE 3: Match MC Question Complexity**\n\nFrom exam RAG, observe MC difficulty:\n\n**Normal difficulty (default):**\n- Requires understanding of one concept\n- 4 options\n- Plausible distractors\n\n**Example from exam RAG style:**\n```json\n{\n  \"question_text\": \"Maata kiertävän satelliitin sisäenergia\",\n  \"choices\": [\n    \"voi suurentua tai pienentyä lämpösäteilyn vaikutuksesta\",\n    \"voi suurentua tai pienentyä energian johtumisen seurauksena\",\n    \"ei voi pienentyä\",\n    \"voi suurentua tai pienentyä energian kuljettumisen seurauksena\"\n  ]\n}\n```\n\n---\n\n### Step 6: Cross-Question Validation\n\n**After generating all questions:**\n\n1. **No duplicates:** Each question tests different concept\n2. **Variety:** Mix of contexts (if exam RAG shows variety)\n3. **Balance:** Don't make all questions about satellites (even if topic is satellites)\n4. **Progression:** Slightly increasing complexity\n5. **Format consistency:** All numbers use Finnish format\n\n---\n\n### Step 7: Calculate Exam Time\n```python\nbase_time = {\n  \"easy\": 4,     # 4 min/question\n  \"normal\": 5,   # 5 min/question\n  \"hard\": 6      # 6 min/question\n}\n\ntotal_time = (\n  num_text * base_time[difficulty] * 60 +      # Text questions\n  num_mc * base_time[difficulty] * 0.7 * 60    # MC 30% faster\n)\n\nexam_time = round(total_time / 60) * 60  # Round to nearest minute\n```\n\n---\n\n### Step 8: Build Exam Metadata\n\n**exam_name format:**\n```\n\"[Course/Topic] - [Focus]\"\n\nExamples:\n- \"FY5 - Ympyräliike ja gravitaatio\"\n- \"Gravitaatio - Satelliitit ja planeetat\"\n- \"FY8 - Ydinfysiikka\"\n```\n\n**exam_description format:**\n```\n\"[num] kysymystä aiheesta [subject]. Sisältää [num_text] laskutehtävää ja [num_mc] monivalintakysymystä.\"\n\nExample:\n- \"7 kysymystä aiheesta gravitaatio ja satelliitit. Sisältää 4 laskutehtävää ja 3 monivalintakysymystä.\"\n```\n\n---\n\n### Step 9: Final JSON Structure\n```json\n{\n  \"questions\": [\n    {\n      \"question_type\": \"text\",\n      \"question_text\": \"Satelliitti kiertää Maata korkeudella \\\\(h = 420\\\\,\\\\mathrm{km}\\\\). Maan säde on \\\\(R = 6{,}37 \\\\times 10^6\\\\,\\\\mathrm{m}\\\\). Laske satelliitin kierrosaika, kun sen nopeus on \\\\(v = 7{,}66\\\\,\\\\mathrm{km/s}\\\\).\",\n      \"choices\": []\n    },\n    {\n      \"question_type\": \"multiple_choice\",\n      \"question_text\": \"Jos satelliitin massa kaksinkertaistuu mutta rata pysyy samana, kuinka muuttuu sen kierrosaika?\",\n      \"choices\": [\n        \"Kierrosaika ei muutu\",\n        \"Kierrosaika kaksinkertaistuu\",\n        \"Kierrosaika pienenee puoleen\",\n        \"Kierrosaika kasvaa \\\\(\\\\sqrt{2}\\\\)-kertaiseksi\"\n      ]\n    }\n  ],\n  \"config\": {\n    \"exam_name\": \"FY5 - Gravitaatio ja satelliitit\",\n    \"exam_description\": \"7 kysymystä aiheesta gravitaatio ja satelliitit. Sisältää 4 laskutehtävää ja 3 monivalintakysymystä.\",\n    \"exam_time\": 2100\n  }\n}\n```\n\n---\n\n### Step 10: Submit and Exit\n\nCall `exam_generator` tool with JSON.\n\n**On success:** Silent exit (no output)\n**On error:** Silent exit (no output)\n\n---\n\n## CRITICAL REMINDERS\n\n### Number Formatting (Check EVERY number)\n```latex\nALWAYS:\n- Decimal comma: \\(3{,}14\\) never \\(3.14\\)\n- Thin space before unit: \\(5{,}0\\,\\mathrm{m}\\) never \\(5{,}0 m\\)\n- Units in \\mathrm: \\(\\mathrm{kg}\\) never \\(kg\\)\n- Scientific notation: \\(6{,}674 \\times 10^{-11}\\) never \\(6.674 \\times 10^{-11}\\)\n```\n\n### Question Quality (Check EVERY question)\n```\nALWAYS:\n- Real context (satellite, PET, experiment) NEVER \"kappale\", \"esine\"\n- Match exam RAG style (instruction verbs, scaffolding)\n- Grounded in textbook RAG (formulas, values, concepts)\n- Finnish grammar perfect\n- LaTeX renders correctly\n```\n\n### What Makes a GOOD vs BAD Exam\n\n**BAD Exam (what you're generating now):**\n- Generic contexts: \"Kappale liikkuu ympyräradalla...\"\n- Formula given with full variable definitions\n- Trivial MC: \"What is the unit of X?\"\n- All questions same difficulty\n- Numbers with periods: `3.14`\n\n**GOOD Exam (matching real Finnish exams):**\n- Specific contexts: \"Satelliitti kiertää Maata korkeudella 420 km...\"\n- Minimal scaffolding (student knows formula)\n- Conceptual MC: \"How does X change when Y doubles?\"\n- Variety in difficulty and approach\n- Numbers with commas: `3{,}14`\n\n---\n\n## Execution Philosophy\n\n**You are creating REAL Finnish physics exams, not textbook exercises.**\n\n**Success = exam indistinguishable from teacher-written exam**\n\n**Input → Retrieve (textbooks + exams) → Learn style → Generate → Validate → Submit → Exit**\n\nYour quality is measured by: \"Could a Finnish physics teacher tell this apart from a real exam?\" (Answer must be: No.)\n\n### always send the exam to exam generator tool and never ever send it in output always send a repsond the perfect exam in json to the exam generator \nok ? "
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        976,
+        -16
+      ],
+      "id": "bd4f56ba-2273-4ce5-9f35-2834884d9a84",
+      "name": "Exam Maker"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.2-chat-latest",
+          "mode": "list",
+          "cachedResultName": "gpt-5.2-chat-latest"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        832,
+        224
+      ],
+      "id": "03b2178c-8a0b-4d26-8057-cbf99bf28e2f",
+      "name": "Open AI Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "H39LVEUFVE8Kzzmi",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Search Finnish high-school physics textbooks FY1–FY8 and return the most relevant passages with LaTeX intact. Use this before any physics reply or exam creation. Queries must be in Finnish. Results include excerpt text, source title, section path, and passage IDs.",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "physics_docs",
+          "mode": "list",
+          "cachedResultName": "physics_docs"
+        },
+        "topK": 10,
+        "options": {
+          "contentPayloadKey": "text"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        1232,
+        224
+      ],
+      "id": "142ce688-5510-47f7-b5b1-3d0bdd4d1ad6",
+      "name": "Book material RAG",
+      "credentials": {
+        "qdrantApi": {
+          "id": "YLmKK1fzQ2bwwViW",
+          "name": "QdrantApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "### send the exam questions to wbeiste so website can display it",
+        "height": 96
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        736,
+        384
+      ],
+      "typeVersion": 1,
+      "id": "ac9fb636-c8eb-4766-8a37-29c28ade0bae",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Makes an HTTP post request to a website exam webiste",
+        "method": "POST",
+        "url": "={{ $json.webhook_url }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('JSON', `give the json with questions and exam config here`, 'json') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        976,
+        224
+      ],
+      "id": "8c05bcf1-4b19-432d-aa42-25accefabc60",
+      "name": "exam generator"
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-3-large",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1056,
+        736
+      ],
+      "id": "9a1a988f-fc4c-4168-aa3c-9279c1bb9c95",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "H39LVEUFVE8Kzzmi",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Search through 245 authentic Finnish high school physics exam questions from courses FY1-FY8 to find real question examples, structures, and phrasing patterns.\n\nUse this tool to:\n1. Find similar exam questions by topic (e.g., \"satelliitti kiertorata\", \"kasvihuoneilmiö\", \"PET-kuvaus\")\n2. Learn authentic question structures and multi-part formatting (e.g., 3.1, 3.2, 3.3)\n3. Discover real-world contexts used in Finnish physics exams (satellites, medical imaging, climate)\n4. Study instruction verb patterns (Laske, Kirjoita, Selitä, Perustele, Määritä)\n5. See how formulas are presented (or omitted) in real exam questions\n\nQuery with topic keywords in Finnish. Returns the most similar exam questions with their course, question number, and full text.\n\nUse exam results to:\n- Match the writing style and tone of authentic Finnish physics exams\n- Adopt similar multi-part question structures (a, b, c format)\n- Use realistic contexts (not generic \"kappale liikkuu\")\n- Apply appropriate scaffolding levels (formula given vs. student must know)\n\nDo NOT copy exam questions verbatim. Use them as style templates with novel content from textbook RAG.",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "physics_exams",
+          "mode": "list",
+          "cachedResultName": "physics_exams"
+        },
+        "topK": 8,
+        "options": {
+          "contentPayloadKey": "pageContent"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        976,
+        544
+      ],
+      "id": "30c0f8b1-de1f-4c1a-be8f-cd6f8f656e71",
+      "name": "Exam files",
+      "credentials": {
+        "qdrantApi": {
+          "id": "YLmKK1fzQ2bwwViW",
+          "name": "QdrantApi account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "n8nyti.duckdns.org",
+            "user-agent": "python-requests/2.31.0",
+            "content-length": "232",
+            "accept": "*/*",
+            "accept-encoding": "gzip, deflate",
+            "content-type": "application/json",
+            "via": "1.1 Caddy",
+            "x-forwarded-for": "46.62.255.51",
+            "x-forwarded-host": "n8nyti.duckdns.org",
+            "x-forwarded-proto": "https"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "subject": "Luo koe Fy5 kurssista",
+            "num_questions": 4,
+            "webhook_url": "https://gerardo-fogyish-modularly.ngrok-free.dev/api/exam-webhook/535c8318-99eb-4ea9-9f95-42338b4cee2f/",
+            "request_id": "535c8318-99eb-4ea9-9f95-42338b4cee2f"
+          },
+          "webhookUrl": "https://n8nyti.duckdns.org/webhook/exam_build",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI1": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Book material RAG",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exam Maker": {
+      "main": [
+        []
+      ]
+    },
+    "Open AI Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Exam Maker",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Book material RAG": {
+      "ai_tool": [
+        [
+          {
+            "node": "Exam Maker",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Exam Maker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "exam generator": {
+      "ai_tool": [
+        [
+          {
+            "node": "Exam Maker",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Exam files",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exam files": {
+      "ai_tool": [
+        [
+          {
+            "node": "Exam Maker",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c5b64cf1-e15b-4df4-a094-a7605697f1c0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d6ed0a84650a5d574f83f71be316e5c5efb58d461cd0ff570e813904c895ca09"
+  },
+  "id": "Oa17xwIs5OlV1hfm",
+  "tags": []
+}
