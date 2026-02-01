@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="fi">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="icon" href="data:,">
+        <!-- Google Fonts - Modern, clean typography -->
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap" rel="stylesheet">
+        {% block title %}<title>Base template</title>{% endblock %}
+
+        {% block navbar_css %}
+        <style>
+        /* ========================================
+           GLOBAL CSS VARIABLES - Design System
+           ======================================== */
+        :root {
+            /* Primary Colors - Teal/Blue palette */
+            --color-primary: #5a9ba8;
+            --color-primary-dark: #4a8695;
+            --color-primary-light: #78cad2;
+            --color-primary-lighter: rgba(120, 202, 210, 0.3);
+
+            /* Secondary Colors */
+            --color-secondary: #62a8ac;
+            --color-secondary-dark: #50858b;
+
+            /* Text Colors */
+            --color-text-primary: #1e3a4c;
+            --color-text-secondary: #4a6072;
+            --color-text-dark: #2d3748;
+            --color-text-muted: #64748b;
+
+            /* Background Colors */
+            --color-bg-white: #ffffff;
+            --color-bg-light: #f7f9fa;
+            --color-bg-gray: #eef2f4;
+            --color-bg-gradient: linear-gradient(135deg, #f8fafb 0%, #f0f7f8 50%, #f5fafb 100%);
+
+            /* Accent Colors */
+            --color-accent-teal: rgba(120, 202, 210, 0.5);
+            --color-accent-gradient: linear-gradient(90deg,
+                rgba(120, 202, 210, 0.3) 0%,
+                rgba(98, 168, 172, 0.4) 50%,
+                rgba(120, 202, 210, 0.3) 100%);
+
+            /* Status Colors */
+            --color-success: #10b981;
+            --color-success-light: #d1fae5;
+            --color-error: #dc2626;
+            --color-error-light: #fee2e2;
+            --color-warning: #f59e0b;
+
+            /* Borders */
+            --color-border: #d0d0d0;
+            --color-border-light: #e2e8f0;
+            --color-border-primary: rgba(90, 155, 168, 0.2);
+
+            /* Shadows */
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 4px 12px rgba(90, 155, 168, 0.12);
+            --shadow-lg: 0 10px 40px rgba(90, 155, 168, 0.15);
+            --shadow-primary: 0 4px 14px rgba(90, 155, 168, 0.25);
+
+            /* Typography - Inter for body, Playfair Display for headings */
+            --font-family-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-family-heading: 'Playfair Display', Georgia, serif;
+
+            /* Font Sizes */
+            --text-xs: 0.75rem;
+            --text-sm: 0.875rem;
+            --text-base: 1rem;
+            --text-lg: 1.125rem;
+            --text-xl: 1.25rem;
+            --text-2xl: 1.5rem;
+            --text-3xl: 1.875rem;
+            --text-4xl: 2.25rem;
+            --text-5xl: 3rem;
+
+            /* Line Heights */
+            --leading-tight: 1.25;
+            --leading-snug: 1.375;
+            --leading-normal: 1.5;
+            --leading-relaxed: 1.625;
+
+            /* Letter Spacing */
+            --tracking-tight: -0.025em;
+            --tracking-normal: 0;
+            --tracking-wide: 0.025em;
+
+            /* Border Radius */
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 15px;
+            --radius-xl: 20px;
+            --radius-full: 25px;
+
+            /* Transitions */
+            --transition-fast: 0.15s ease;
+            --transition-normal: 0.25s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-family-primary);
+            background: var(--color-bg-white);
+            padding-top: 56px;
+            color: var(--color-text-dark);
+            font-size: var(--text-base);
+            line-height: var(--leading-normal);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Global heading styles */
+        h1, h2, h3, h4, h5, h6 {
+            font-family: var(--font-family-heading);
+            color: var(--color-text-primary);
+            line-height: var(--leading-tight);
+            letter-spacing: var(--tracking-tight);
+        }
+
+        h1 { font-size: var(--text-4xl); font-weight: 700; }
+        h2 { font-size: var(--text-3xl); font-weight: 600; }
+        h3 { font-size: var(--text-2xl); font-weight: 600; }
+        h4 { font-size: var(--text-xl); font-weight: 600; }
+
+        p {
+            line-height: var(--leading-relaxed);
+            color: var(--color-text-secondary);
+        }
+
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 56px;
+            z-index: 1000;
+            background-color: var(--color-bg-white);
+            color: var(--color-text-dark);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            box-shadow: var(--shadow-sm);
+            border-bottom: 1px solid var(--color-border-light);
+        }
+
+        .navbar a {
+            all: unset;
+            display: flex;
+            align-items: center;
+            color: var(--color-text-dark);
+            cursor: pointer;
+        }
+
+        .navbar .menu {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .navbar .menu span {
+            padding: 10px 18px;
+            border-radius: var(--radius-sm);
+            transition: var(--transition-fast);
+            color: var(--color-text-secondary);
+            font-weight: 500;
+            font-size: var(--text-sm);
+            letter-spacing: var(--tracking-wide);
+        }
+
+        .navbar .menu span:hover {
+            background-color: var(--color-bg-gray);
+            color: var(--color-text-primary);
+        }
+
+        .navbar .menu a.active span {
+            background-color: var(--color-primary);
+            color: white;
+        }
+
+        .navbar .auth {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .navbar button {
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: var(--transition-normal);
+            font-weight: 600;
+            font-size: var(--text-sm);
+            font-family: var(--font-family-primary);
+            letter-spacing: var(--tracking-wide);
+        }
+
+        .navbar .login {
+            background-color: transparent;
+            color: var(--color-text-secondary);
+            border: none;
+        }
+
+        .navbar .login:hover {
+            background-color: var(--color-bg-gray);
+            color: var(--color-text-primary);
+        }
+
+        .navbar .signup {
+            background-color: var(--color-primary);
+            color: white;
+            border: none;
+        }
+
+        .navbar .signup:hover {
+            background-color: var(--color-primary-dark);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-primary);
+        }
+
+        /* ========================================
+           GLOBAL UTILITY CLASSES
+           ======================================== */
+        .btn-primary {
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: var(--radius-md);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition-normal);
+        }
+
+        .btn-primary:hover {
+            background: var(--color-primary-dark);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-primary);
+        }
+
+        .btn-secondary {
+            background: var(--color-bg-white);
+            color: var(--color-primary);
+            border: 2px solid var(--color-primary);
+            padding: 12px 24px;
+            border-radius: var(--radius-md);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition-normal);
+        }
+
+        .btn-secondary:hover {
+            background: var(--color-primary);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .card {
+            background: var(--color-bg-white);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-md);
+        }
+        </style>
+        {% endblock %}
+
+        {% block css %}{% endblock %}
+    </head>
+
+    <body>
+        {% block navbar %}
+        <nav class="navbar">
+            <div class="menu">
+                <a href="{% url 'home' %}"><span>Etusivu</span></a>
+                <a href="{% url 'create_exam' %}"><span>Harjoittelu</span></a>
+                <a href="{% url 'teacher' %}"><span>Opettaja</span></a>
+                <a href="{% url 'tutor' %}"><span>Tuutori</span></a>
+                <a href="{% url 'calendar' %}"><span>Kalenteri</span></a>
+            </div>
+            <div class="auth">
+                <button class="login">Kirjaudu</button>
+                <button class="signup">Rekisteröidy</button>
+            </div>
+        </nav>
+        {% endblock %}
+
+        {% block content %}{% endblock %}
+    </body>
+</html>

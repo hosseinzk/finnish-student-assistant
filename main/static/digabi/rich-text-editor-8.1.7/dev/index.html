@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Rich text editor example</title>
+    <link rel="stylesheet" type="text/css" href="//unpkg.com/@digabi/mathquill/build/mathquill.css" />
+    <script src="//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" id="MathJax-script"></script>
+    <script type="module" src="js/index.js"></script>
+    <script>
+      const baseOpts = {
+        baseUrl: 'http://localhost:5111',
+        initialValue:
+          'testi. <br>kaava: <img src="http://localhost:5111/math.svg?latex=%5Csqrt%7B123%7D" alt="\\sqrt{123}"><br> <br>',
+        textAreaProps: {
+          ariaLabelledBy: 'question-label',
+          questionId: '123',
+          editorStyle: {},
+          lang: 'fi-FI',
+        },
+        onValueChange: console.log
+      }
+
+      window.addRichTextEditor = () => {
+        const label = document.createElement('label')
+        label.innerHTML = 'Another sample question'
+        const container = document.createElement('div')
+        container.setAttribute('id', `rich-text-editor-root-${document.querySelectorAll('div').length + 1}`)
+        document.body.appendChild(label)
+        document.body.appendChild(container)
+
+        window.makeRichText({
+          ...baseOpts,
+          container: container
+        })
+      }
+
+      window.addEventListener('DOMContentLoaded', function () {
+        window.makeRichText(baseOpts)
+      })
+    </script>
+  </head>
+  <body>
+    <button onclick="window.addRichTextEditor()" style="margin-top: 300px">Add Rich Text Editor</button>
+    <label id="question-label" style="display: block">Sample question</label>
+    <div id="rich-text-editor-root"></div>
+  </body>
+</html>

@@ -1,0 +1,1728 @@
+{% extends "main/base.html" %}
+
+{% block title %}<title>Kalenteri</title>{% endblock %}
+
+{% block css %}
+<style>
+    .calendar-container {
+        display: flex;
+        height: calc(100vh - 56px);
+        background: var(--color-bg-light);
+    }
+
+    /* Sidebar */
+    .calendar-sidebar {
+        width: 280px;
+        background: var(--color-bg-white);
+        border-right: 1px solid var(--color-border-light);
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+    }
+
+    .create-event-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 24px;
+        background: var(--color-primary);
+        color: white;
+        border: none;
+        border-radius: var(--radius-full);
+        font-size: var(--text-base);
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition-normal);
+        box-shadow: var(--shadow-primary);
+        margin-bottom: 24px;
+    }
+
+    .create-event-btn:hover {
+        background: var(--color-primary-dark);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(90, 155, 168, 0.35);
+    }
+
+    .create-event-btn svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    /* Mini Calendar */
+    .mini-calendar {
+        margin-bottom: 24px;
+    }
+
+    .mini-calendar-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+    }
+
+    .mini-calendar-title {
+        font-size: var(--text-base);
+        font-weight: 600;
+        color: var(--color-text-primary);
+    }
+
+    .mini-calendar-nav {
+        display: flex;
+        gap: 4px;
+    }
+
+    .mini-calendar-nav button {
+        width: 28px;
+        height: 28px;
+        border: none;
+        background: transparent;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-text-secondary);
+        transition: var(--transition-fast);
+    }
+
+    .mini-calendar-nav button:hover {
+        background: var(--color-bg-gray);
+        color: var(--color-text-primary);
+    }
+
+    .mini-calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 2px;
+    }
+
+    .mini-calendar-day-header {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--color-text-muted);
+        text-align: center;
+        padding: 4px;
+    }
+
+    .mini-calendar-day {
+        aspect-ratio: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: var(--transition-fast);
+        color: var(--color-text-secondary);
+    }
+
+    .mini-calendar-day:hover {
+        background: var(--color-bg-gray);
+    }
+
+    .mini-calendar-day.today {
+        background: var(--color-primary);
+        color: white;
+        font-weight: 600;
+    }
+
+    .mini-calendar-day.selected {
+        background: var(--color-primary-lighter);
+        color: var(--color-primary-dark);
+    }
+
+    .mini-calendar-day.other-month {
+        color: var(--color-text-muted);
+        opacity: 0.5;
+    }
+
+    /* Calendar Sources */
+    .sources-section {
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    .sources-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+    }
+
+    .sources-title {
+        font-size: var(--text-sm);
+        font-weight: 600;
+        color: var(--color-text-primary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .add-source-btn {
+        width: 24px;
+        height: 24px;
+        border: none;
+        background: transparent;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-text-secondary);
+        transition: var(--transition-fast);
+    }
+
+    .add-source-btn:hover {
+        background: var(--color-bg-gray);
+        color: var(--color-primary);
+    }
+
+    .source-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: var(--transition-fast);
+        margin-bottom: 4px;
+    }
+
+    .source-item:hover {
+        background: var(--color-bg-gray);
+    }
+
+    .source-color {
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+        flex-shrink: 0;
+    }
+
+    .source-name {
+        flex: 1;
+        font-size: var(--text-sm);
+        color: var(--color-text-secondary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .source-actions {
+        display: flex;
+        gap: 4px;
+        opacity: 0;
+        transition: var(--transition-fast);
+    }
+
+    .source-item:hover .source-actions {
+        opacity: 1;
+    }
+
+    .source-action-btn {
+        width: 20px;
+        height: 20px;
+        border: none;
+        background: transparent;
+        border-radius: 4px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-text-muted);
+        transition: var(--transition-fast);
+    }
+
+    .source-action-btn:hover {
+        background: var(--color-bg-white);
+        color: var(--color-text-primary);
+    }
+
+    .source-action-btn.delete:hover {
+        color: var(--color-error);
+    }
+
+    /* Main Calendar */
+    .calendar-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    /* Calendar Header */
+    .calendar-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 24px;
+        background: var(--color-bg-white);
+        border-bottom: 1px solid var(--color-border-light);
+    }
+
+    .calendar-nav {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .nav-btn {
+        width: 36px;
+        height: 36px;
+        border: 1px solid var(--color-border-light);
+        background: var(--color-bg-white);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-text-secondary);
+        transition: var(--transition-fast);
+    }
+
+    .nav-btn:hover {
+        background: var(--color-bg-gray);
+        border-color: var(--color-border);
+    }
+
+    .today-btn {
+        padding: 8px 16px;
+        border: 1px solid var(--color-border-light);
+        background: var(--color-bg-white);
+        border-radius: var(--radius-sm);
+        font-size: var(--text-sm);
+        font-weight: 500;
+        color: var(--color-text-secondary);
+        cursor: pointer;
+        transition: var(--transition-fast);
+    }
+
+    .today-btn:hover {
+        background: var(--color-bg-gray);
+        border-color: var(--color-border);
+    }
+
+    .current-date {
+        font-size: var(--text-xl);
+        font-weight: 600;
+        color: var(--color-text-primary);
+        min-width: 200px;
+    }
+
+    .view-selector {
+        display: flex;
+        border: 1px solid var(--color-border-light);
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+    }
+
+    .view-btn {
+        padding: 8px 16px;
+        border: none;
+        background: var(--color-bg-white);
+        font-size: var(--text-sm);
+        font-weight: 500;
+        color: var(--color-text-secondary);
+        cursor: pointer;
+        transition: var(--transition-fast);
+        border-right: 1px solid var(--color-border-light);
+    }
+
+    .view-btn:last-child {
+        border-right: none;
+    }
+
+    .view-btn:hover {
+        background: var(--color-bg-gray);
+    }
+
+    .view-btn.active {
+        background: var(--color-primary);
+        color: white;
+    }
+
+    /* Calendar Grid */
+    .calendar-grid-container {
+        flex: 1;
+        overflow: auto;
+        padding: 0;
+    }
+
+    /* Week/Day View Header */
+    .time-grid-header {
+        display: grid;
+        grid-template-columns: 60px repeat(7, 1fr);
+        background: var(--color-bg-white);
+        border-bottom: 1px solid var(--color-border-light);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .time-grid-header.day-view {
+        grid-template-columns: 60px 1fr;
+    }
+
+    .time-corner {
+        border-right: 1px solid var(--color-border-light);
+    }
+
+    .day-header {
+        padding: 12px 8px;
+        text-align: center;
+        border-right: 1px solid var(--color-border-light);
+    }
+
+    .day-header:last-child {
+        border-right: none;
+    }
+
+    .day-name {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--color-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+    }
+
+    .day-number {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: var(--text-xl);
+        font-weight: 500;
+        color: var(--color-text-primary);
+        margin: 0 auto;
+        border-radius: 50%;
+    }
+
+    .day-header.today .day-number {
+        background: var(--color-primary);
+        color: white;
+    }
+
+    /* Time Grid */
+    .time-grid {
+        display: grid;
+        grid-template-columns: 60px repeat(7, 1fr);
+        min-height: 1440px; /* 24 hours * 60px */
+    }
+
+    .time-grid.day-view {
+        grid-template-columns: 60px 1fr;
+    }
+
+    .time-column {
+        border-right: 1px solid var(--color-border-light);
+    }
+
+    .time-slot {
+        height: 60px;
+        padding: 4px 8px;
+        font-size: 11px;
+        color: var(--color-text-muted);
+        text-align: right;
+        border-bottom: 1px solid var(--color-border-light);
+    }
+
+    .day-column {
+        position: relative;
+        border-right: 1px solid var(--color-border-light);
+    }
+
+    .day-column:last-child {
+        border-right: none;
+    }
+
+    .hour-line {
+        height: 60px;
+        border-bottom: 1px solid var(--color-border-light);
+    }
+
+    .hour-line:nth-child(odd) {
+        border-bottom: 1px dashed var(--color-border-light);
+    }
+
+    /* Month View */
+    .month-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        flex: 1;
+        background: var(--color-bg-white);
+    }
+
+    .month-header {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        background: var(--color-bg-white);
+        border-bottom: 1px solid var(--color-border-light);
+    }
+
+    .month-day-header {
+        padding: 12px;
+        text-align: center;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--color-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .month-day {
+        min-height: 120px;
+        border-right: 1px solid var(--color-border-light);
+        border-bottom: 1px solid var(--color-border-light);
+        padding: 4px;
+        cursor: pointer;
+        transition: var(--transition-fast);
+    }
+
+    .month-day:nth-child(7n) {
+        border-right: none;
+    }
+
+    .month-day:hover {
+        background: var(--color-bg-light);
+    }
+
+    .month-day.other-month {
+        background: var(--color-bg-gray);
+    }
+
+    .month-day.other-month .month-day-number {
+        color: var(--color-text-muted);
+    }
+
+    .month-day.today .month-day-number {
+        background: var(--color-primary);
+        color: white;
+    }
+
+    .month-day-number {
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: var(--text-sm);
+        font-weight: 500;
+        color: var(--color-text-primary);
+        border-radius: 50%;
+        margin-bottom: 4px;
+    }
+
+    .month-day-events {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    /* Event Styles */
+    .event {
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 500;
+        color: white;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        cursor: pointer;
+        transition: var(--transition-fast);
+    }
+
+    .event:hover {
+        filter: brightness(0.9);
+    }
+
+    .event-time {
+        position: absolute;
+        left: 4px;
+        right: 4px;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        color: white;
+        cursor: pointer;
+        overflow: hidden;
+        z-index: 5;
+        transition: var(--transition-fast);
+    }
+
+    .event-time:hover {
+        filter: brightness(0.9);
+        z-index: 10;
+    }
+
+    .event-time .event-title {
+        font-weight: 600;
+        margin-bottom: 2px;
+    }
+
+    .event-time .event-time-text {
+        font-size: 11px;
+        opacity: 0.9;
+    }
+
+    .more-events {
+        font-size: 11px;
+        color: var(--color-text-muted);
+        padding: 2px 6px;
+        cursor: pointer;
+    }
+
+    .more-events:hover {
+        color: var(--color-primary);
+    }
+
+    /* Modals */
+    .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        opacity: 0;
+        visibility: hidden;
+        transition: var(--transition-normal);
+    }
+
+    .modal-overlay.active {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .modal {
+        background: var(--color-bg-white);
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-lg);
+        width: 100%;
+        max-width: 500px;
+        max-height: 90vh;
+        overflow-y: auto;
+        transform: translateY(20px);
+        transition: var(--transition-normal);
+    }
+
+    .modal-overlay.active .modal {
+        transform: translateY(0);
+    }
+
+    .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--color-border-light);
+    }
+
+    .modal-title {
+        font-size: var(--text-lg);
+        font-weight: 600;
+        color: var(--color-text-primary);
+    }
+
+    .modal-close {
+        width: 32px;
+        height: 32px;
+        border: none;
+        background: transparent;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-text-muted);
+        transition: var(--transition-fast);
+    }
+
+    .modal-close:hover {
+        background: var(--color-bg-gray);
+        color: var(--color-text-primary);
+    }
+
+    .modal-body {
+        padding: 24px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-label {
+        display: block;
+        font-size: var(--text-sm);
+        font-weight: 500;
+        color: var(--color-text-primary);
+        margin-bottom: 8px;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid var(--color-border-light);
+        border-radius: var(--radius-md);
+        font-size: var(--text-base);
+        font-family: var(--font-family-primary);
+        transition: var(--transition-fast);
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 3px var(--color-primary-lighter);
+    }
+
+    .form-textarea {
+        resize: vertical;
+        min-height: 80px;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    .color-picker-group {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .color-option {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        border: 3px solid transparent;
+        transition: var(--transition-fast);
+    }
+
+    .color-option:hover {
+        transform: scale(1.1);
+    }
+
+    .color-option.selected {
+        border-color: var(--color-text-primary);
+    }
+
+    .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        padding: 16px 24px;
+        border-top: 1px solid var(--color-border-light);
+    }
+
+    .btn-cancel {
+        padding: 10px 20px;
+        border: 1px solid var(--color-border-light);
+        background: var(--color-bg-white);
+        border-radius: var(--radius-md);
+        font-size: var(--text-sm);
+        font-weight: 500;
+        color: var(--color-text-secondary);
+        cursor: pointer;
+        transition: var(--transition-fast);
+    }
+
+    .btn-cancel:hover {
+        background: var(--color-bg-gray);
+    }
+
+    .btn-save {
+        padding: 10px 20px;
+        border: none;
+        background: var(--color-primary);
+        border-radius: var(--radius-md);
+        font-size: var(--text-sm);
+        font-weight: 600;
+        color: white;
+        cursor: pointer;
+        transition: var(--transition-fast);
+    }
+
+    .btn-save:hover {
+        background: var(--color-primary-dark);
+    }
+
+    .btn-delete {
+        padding: 10px 20px;
+        border: none;
+        background: var(--color-error);
+        border-radius: var(--radius-md);
+        font-size: var(--text-sm);
+        font-weight: 600;
+        color: white;
+        cursor: pointer;
+        transition: var(--transition-fast);
+        margin-right: auto;
+    }
+
+    .btn-delete:hover {
+        background: #b91c1c;
+    }
+
+    /* All Day Events Row */
+    .all-day-row {
+        display: grid;
+        grid-template-columns: 60px repeat(7, 1fr);
+        background: var(--color-bg-white);
+        border-bottom: 1px solid var(--color-border-light);
+        min-height: 30px;
+    }
+
+    .all-day-row.day-view {
+        grid-template-columns: 60px 1fr;
+    }
+
+    .all-day-label {
+        font-size: 11px;
+        color: var(--color-text-muted);
+        padding: 8px;
+        text-align: right;
+        border-right: 1px solid var(--color-border-light);
+    }
+
+    .all-day-cell {
+        padding: 4px;
+        border-right: 1px solid var(--color-border-light);
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .all-day-cell:last-child {
+        border-right: none;
+    }
+
+    /* Loading */
+    .loading-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+    }
+
+    .spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid var(--color-border-light);
+        border-top-color: var(--color-primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+        .calendar-sidebar {
+            display: none;
+        }
+
+        .calendar-header {
+            padding: 12px 16px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .current-date {
+            font-size: var(--text-lg);
+            min-width: auto;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="calendar-container">
+    <!-- Sidebar -->
+    <aside class="calendar-sidebar">
+        <button class="create-event-btn" onclick="openCreateEventModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Luo tapahtuma
+        </button>
+
+        <!-- Mini Calendar -->
+        <div class="mini-calendar">
+            <div class="mini-calendar-header">
+                <span class="mini-calendar-title" id="miniCalendarTitle"></span>
+                <div class="mini-calendar-nav">
+                    <button onclick="miniCalendarPrev()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                    </button>
+                    <button onclick="miniCalendarNext()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="mini-calendar-grid" id="miniCalendarGrid"></div>
+        </div>
+
+        <!-- Calendar Sources -->
+        <div class="sources-section">
+            <div class="sources-header">
+                <span class="sources-title">Kalenterit</span>
+                <button class="add-source-btn" onclick="openAddSourceModal()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                </button>
+            </div>
+            <div id="sourcesList">
+                <div class="source-item">
+                    <div class="source-color" style="background: #5a9ba8"></div>
+                    <span class="source-name">Omat tapahtumat</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Calendar -->
+    <main class="calendar-main">
+        <!-- Calendar Header -->
+        <header class="calendar-header">
+            <div class="calendar-nav">
+                <button class="today-btn" onclick="goToToday()">Tänään</button>
+                <button class="nav-btn" onclick="navigatePrev()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </button>
+                <button class="nav-btn" onclick="navigateNext()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </button>
+                <span class="current-date" id="currentDateDisplay"></span>
+            </div>
+            <div class="view-selector">
+                <button class="view-btn" data-view="day" onclick="setView('day')">Päivä</button>
+                <button class="view-btn" data-view="week" onclick="setView('week')">Viikko</button>
+                <button class="view-btn active" data-view="month" onclick="setView('month')">Kuukausi</button>
+            </div>
+        </header>
+
+        <!-- Calendar Grid Container -->
+        <div class="calendar-grid-container" id="calendarGridContainer">
+            <!-- Content rendered by JavaScript -->
+        </div>
+    </main>
+</div>
+
+<!-- Create/Edit Event Modal -->
+<div class="modal-overlay" id="eventModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title" id="eventModalTitle">Luo tapahtuma</h3>
+            <button class="modal-close" onclick="closeEventModal()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="eventId">
+            <div class="form-group">
+                <label class="form-label">Otsikko</label>
+                <input type="text" class="form-input" id="eventTitle" placeholder="Lisää otsikko">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Alkaa</label>
+                    <input type="datetime-local" class="form-input" id="eventStart">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Päättyy</label>
+                    <input type="datetime-local" class="form-input" id="eventEnd">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">
+                    <input type="checkbox" id="eventAllDay"> Koko päivä
+                </label>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Sijainti</label>
+                <input type="text" class="form-input" id="eventLocation" placeholder="Lisää sijainti">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Kuvaus</label>
+                <textarea class="form-input form-textarea" id="eventDescription" placeholder="Lisää kuvaus"></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Väri</label>
+                <div class="color-picker-group" id="eventColorPicker">
+                    <div class="color-option selected" style="background: #5a9ba8" data-color="#5a9ba8"></div>
+                    <div class="color-option" style="background: #4285f4" data-color="#4285f4"></div>
+                    <div class="color-option" style="background: #7986cb" data-color="#7986cb"></div>
+                    <div class="color-option" style="background: #33b679" data-color="#33b679"></div>
+                    <div class="color-option" style="background: #f6bf26" data-color="#f6bf26"></div>
+                    <div class="color-option" style="background: #f4511e" data-color="#f4511e"></div>
+                    <div class="color-option" style="background: #e67c73" data-color="#e67c73"></div>
+                    <div class="color-option" style="background: #616161" data-color="#616161"></div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-delete" id="deleteEventBtn" onclick="deleteEvent()" style="display: none;">Poista</button>
+            <button class="btn-cancel" onclick="closeEventModal()">Peruuta</button>
+            <button class="btn-save" onclick="saveEvent()">Tallenna</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Calendar Source Modal -->
+<div class="modal-overlay" id="sourceModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title">Lisäärä kalenteri</h3>
+            <button class="modal-close" onclick="closeSourceModal()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Kalenterin nimi</label>
+                <input type="text" class="form-input" id="sourceName" placeholder="esim. Koululukujärjestys">
+            </div>
+            <div class="form-group">
+                <label class="form-label">ICS URL</label>
+                <input type="url" class="form-input" id="sourceUrl" placeholder="https://example.com/calendar.ics">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Väri</label>
+                <div class="color-picker-group" id="sourceColorPicker">
+                    <div class="color-option selected" style="background: #5a9ba8" data-color="#5a9ba8"></div>
+                    <div class="color-option" style="background: #4285f4" data-color="#4285f4"></div>
+                    <div class="color-option" style="background: #7986cb" data-color="#7986cb"></div>
+                    <div class="color-option" style="background: #33b679" data-color="#33b679"></div>
+                    <div class="color-option" style="background: #f6bf26" data-color="#f6bf26"></div>
+                    <div class="color-option" style="background: #f4511e" data-color="#f4511e"></div>
+                    <div class="color-option" style="background: #e67c73" data-color="#e67c73"></div>
+                    <div class="color-option" style="background: #616161" data-color="#616161"></div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="closeSourceModal()">Peruuta</button>
+            <button class="btn-save" onclick="addSource()">Lisää</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// State
+let currentDate = new Date();
+let currentView = 'month';
+let events = [];
+let sources = [];
+let miniCalendarDate = new Date();
+let selectedEventColor = '#5a9ba8';
+let selectedSourceColor = '#5a9ba8';
+
+// Finnish month names
+const monthNames = ['Tammikuu', 'Helmikuu', 'Maaliskuu', 'Huhtikuu', 'Toukokuu', 'Kesäkuu',
+                    'Heinäkuu', 'Elokuu', 'Syyskuu', 'Lokakuu', 'Marraskuu', 'Joulukuu'];
+const dayNames = ['Su', 'Ma', 'Ti', 'Ke', 'To', 'Pe', 'La'];
+const dayNamesFull = ['Sunnuntai', 'Maanantai', 'Tiistai', 'Keskiviikko', 'Torstai', 'Perjantai', 'Lauantai'];
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    initColorPickers();
+    loadSources();
+    loadEvents();
+    renderMiniCalendar();
+    renderCalendar();
+    updateDateDisplay();
+});
+
+// Color picker initialization
+function initColorPickers() {
+    document.querySelectorAll('#eventColorPicker .color-option').forEach(option => {
+        option.addEventListener('click', () => {
+            document.querySelectorAll('#eventColorPicker .color-option').forEach(o => o.classList.remove('selected'));
+            option.classList.add('selected');
+            selectedEventColor = option.dataset.color;
+        });
+    });
+
+    document.querySelectorAll('#sourceColorPicker .color-option').forEach(option => {
+        option.addEventListener('click', () => {
+            document.querySelectorAll('#sourceColorPicker .color-option').forEach(o => o.classList.remove('selected'));
+            option.classList.add('selected');
+            selectedSourceColor = option.dataset.color;
+        });
+    });
+}
+
+// Load events from API
+async function loadEvents() {
+    try {
+        // Load ALL events without any date filtering
+        const response = await fetch('/api/calendar/events/');
+        const data = await response.json();
+        if (data.status === 'success') {
+            events = data.events.map(e => ({
+                ...e,
+                start: new Date(e.start),
+                end: new Date(e.end)
+            }));
+            renderCalendar();
+        }
+    } catch (error) {
+        console.error('Error loading events:', error);
+    }
+}
+
+// Load calendar sources
+async function loadSources() {
+    try {
+        const response = await fetch('/api/calendar/sources/');
+        const data = await response.json();
+        if (data.status === 'success') {
+            sources = data.sources;
+            renderSources();
+        }
+    } catch (error) {
+        console.error('Error loading sources:', error);
+    }
+}
+
+// Render sources list
+function renderSources() {
+    const container = document.getElementById('sourcesList');
+    container.innerHTML = `
+        <div class="source-item">
+            <div class="source-color" style="background: #5a9ba8"></div>
+            <span class="source-name">Omat tapahtumat</span>
+        </div>
+    `;
+
+    sources.forEach(source => {
+        container.innerHTML += `
+            <div class="source-item" data-source-id="${source.id}">
+                <div class="source-color" style="background: ${source.color}"></div>
+                <span class="source-name">${source.name}</span>
+                <div class="source-actions">
+                    <button class="source-action-btn" onclick="syncSource(${source.id})" title="Synkronoi">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"></path>
+                        </svg>
+                    </button>
+                    <button class="source-action-btn delete" onclick="deleteSource(${source.id})" title="Poista">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+}
+
+// Render mini calendar
+function renderMiniCalendar() {
+    const title = document.getElementById('miniCalendarTitle');
+    title.textContent = `${monthNames[miniCalendarDate.getMonth()]} ${miniCalendarDate.getFullYear()}`;
+
+    const grid = document.getElementById('miniCalendarGrid');
+    grid.innerHTML = '';
+
+    // Day headers
+    dayNames.forEach(day => {
+        grid.innerHTML += `<div class="mini-calendar-day-header">${day}</div>`;
+    });
+
+    const firstDay = new Date(miniCalendarDate.getFullYear(), miniCalendarDate.getMonth(), 1);
+    const lastDay = new Date(miniCalendarDate.getFullYear(), miniCalendarDate.getMonth() + 1, 0);
+    const startDay = firstDay.getDay();
+
+    // Previous month days
+    const prevMonth = new Date(miniCalendarDate.getFullYear(), miniCalendarDate.getMonth(), 0);
+    for (let i = startDay - 1; i >= 0; i--) {
+        const day = prevMonth.getDate() - i;
+        grid.innerHTML += `<div class="mini-calendar-day other-month">${day}</div>`;
+    }
+
+    // Current month days
+    const today = new Date();
+    for (let day = 1; day <= lastDay.getDate(); day++) {
+        const isToday = today.getDate() === day &&
+                        today.getMonth() === miniCalendarDate.getMonth() &&
+                        today.getFullYear() === miniCalendarDate.getFullYear();
+        const isSelected = currentDate.getDate() === day &&
+                          currentDate.getMonth() === miniCalendarDate.getMonth() &&
+                          currentDate.getFullYear() === miniCalendarDate.getFullYear();
+
+        let classes = 'mini-calendar-day';
+        if (isToday) classes += ' today';
+        if (isSelected) classes += ' selected';
+
+        grid.innerHTML += `<div class="${classes}" onclick="selectDate(${day})">${day}</div>`;
+    }
+
+    // Next month days
+    const totalCells = Math.ceil((startDay + lastDay.getDate()) / 7) * 7;
+    const remaining = totalCells - (startDay + lastDay.getDate());
+    for (let i = 1; i <= remaining; i++) {
+        grid.innerHTML += `<div class="mini-calendar-day other-month">${i}</div>`;
+    }
+}
+
+function miniCalendarPrev() {
+    miniCalendarDate.setMonth(miniCalendarDate.getMonth() - 1);
+    renderMiniCalendar();
+}
+
+function miniCalendarNext() {
+    miniCalendarDate.setMonth(miniCalendarDate.getMonth() + 1);
+    renderMiniCalendar();
+}
+
+function selectDate(day) {
+    currentDate = new Date(miniCalendarDate.getFullYear(), miniCalendarDate.getMonth(), day);
+    renderMiniCalendar();
+    loadEvents();
+    renderCalendar();
+    updateDateDisplay();
+}
+
+// Navigation
+function goToToday() {
+    currentDate = new Date();
+    miniCalendarDate = new Date();
+    renderMiniCalendar();
+    loadEvents();
+    renderCalendar();
+    updateDateDisplay();
+}
+
+function navigatePrev() {
+    if (currentView === 'month') {
+        currentDate.setMonth(currentDate.getMonth() - 1);
+    } else if (currentView === 'week') {
+        currentDate.setDate(currentDate.getDate() - 7);
+    } else {
+        currentDate.setDate(currentDate.getDate() - 1);
+    }
+    loadEvents();
+    renderCalendar();
+    updateDateDisplay();
+}
+
+function navigateNext() {
+    if (currentView === 'month') {
+        currentDate.setMonth(currentDate.getMonth() + 1);
+    } else if (currentView === 'week') {
+        currentDate.setDate(currentDate.getDate() + 7);
+    } else {
+        currentDate.setDate(currentDate.getDate() + 1);
+    }
+    loadEvents();
+    renderCalendar();
+    updateDateDisplay();
+}
+
+function setView(view) {
+    currentView = view;
+    document.querySelectorAll('.view-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.view === view);
+    });
+    renderCalendar();
+    updateDateDisplay();
+}
+
+function updateDateDisplay() {
+    const display = document.getElementById('currentDateDisplay');
+    if (currentView === 'month') {
+        display.textContent = `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+    } else if (currentView === 'week') {
+        const weekStart = getWeekStart(currentDate);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+
+        if (weekStart.getMonth() === weekEnd.getMonth()) {
+            display.textContent = `${weekStart.getDate()} - ${weekEnd.getDate()} ${monthNames[weekStart.getMonth()]} ${weekStart.getFullYear()}`;
+        } else {
+            display.textContent = `${weekStart.getDate()} ${monthNames[weekStart.getMonth()].substring(0, 3)} - ${weekEnd.getDate()} ${monthNames[weekEnd.getMonth()].substring(0, 3)} ${weekStart.getFullYear()}`;
+        }
+    } else {
+        display.textContent = `${dayNamesFull[currentDate.getDay()]} ${currentDate.getDate()} ${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+    }
+}
+
+function getWeekStart(date) {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(d.setDate(diff));
+}
+
+// Render calendar based on current view
+function renderCalendar() {
+    const container = document.getElementById('calendarGridContainer');
+
+    if (currentView === 'month') {
+        renderMonthView(container);
+    } else if (currentView === 'week') {
+        renderWeekView(container);
+    } else {
+        renderDayView(container);
+    }
+}
+
+function renderMonthView(container) {
+    const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    const startDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+
+    let html = '<div class="month-header">';
+    ['Ma', 'Ti', 'Ke', 'To', 'Pe', 'La', 'Su'].forEach(day => {
+        html += `<div class="month-day-header">${day}</div>`;
+    });
+    html += '</div><div class="month-grid">';
+
+    const today = new Date();
+    const totalDays = startDay + lastDay.getDate();
+    const totalCells = Math.ceil(totalDays / 7) * 7;
+
+    // Previous month
+    const prevMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 0);
+    for (let i = startDay - 1; i >= 0; i--) {
+        const day = prevMonth.getDate() - i;
+        const date = new Date(prevMonth.getFullYear(), prevMonth.getMonth(), day);
+        html += renderMonthDay(date, true);
+    }
+
+    // Current month
+    for (let day = 1; day <= lastDay.getDate(); day++) {
+        const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+        const isToday = today.toDateString() === date.toDateString();
+        html += renderMonthDay(date, false, isToday);
+    }
+
+    // Next month
+    const remaining = totalCells - totalDays;
+    for (let i = 1; i <= remaining; i++) {
+        const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, i);
+        html += renderMonthDay(date, true);
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function renderMonthDay(date, isOtherMonth, isToday = false) {
+    const dayEvents = events.filter(e => {
+        const eventDate = new Date(e.start).toDateString();
+        return eventDate === date.toDateString();
+    });
+
+    let classes = 'month-day';
+    if (isOtherMonth) classes += ' other-month';
+    if (isToday) classes += ' today';
+
+    let html = `<div class="${classes}" onclick="openCreateEventModal('${date.toISOString()}')">`;
+    html += `<div class="month-day-number">${date.getDate()}</div>`;
+    html += '<div class="month-day-events">';
+
+    const maxEvents = 3;
+    dayEvents.slice(0, maxEvents).forEach(event => {
+        html += `<div class="event" style="background: ${event.color}" onclick="event.stopPropagation(); openEditEventModal(${event.id})">${event.title}</div>`;
+    });
+
+    if (dayEvents.length > maxEvents) {
+        html += `<div class="more-events">+${dayEvents.length - maxEvents} lisää</div>`;
+    }
+
+    html += '</div></div>';
+    return html;
+}
+
+function renderWeekView(container) {
+    const weekStart = getWeekStart(currentDate);
+    const today = new Date();
+
+    let html = '<div class="time-grid-header">';
+    html += '<div class="time-corner"></div>';
+
+    for (let i = 0; i < 7; i++) {
+        const date = new Date(weekStart);
+        date.setDate(date.getDate() + i);
+        const isToday = today.toDateString() === date.toDateString();
+        html += `
+            <div class="day-header ${isToday ? 'today' : ''}">
+                <div class="day-name">${dayNames[(i + 1) % 7]}</div>
+                <div class="day-number">${date.getDate()}</div>
+            </div>
+        `;
+    }
+    html += '</div>';
+
+    // All day events row
+    html += '<div class="all-day-row">';
+    html += '<div class="all-day-label">Koko päivä</div>';
+    for (let i = 0; i < 7; i++) {
+        const date = new Date(weekStart);
+        date.setDate(date.getDate() + i);
+        const allDayEvents = events.filter(e => e.allDay && new Date(e.start).toDateString() === date.toDateString());
+        html += '<div class="all-day-cell">';
+        allDayEvents.forEach(event => {
+            html += `<div class="event" style="background: ${event.color}" onclick="openEditEventModal(${event.id})">${event.title}</div>`;
+        });
+        html += '</div>';
+    }
+    html += '</div>';
+
+    // Time grid
+    html += '<div class="time-grid">';
+    html += '<div class="time-column">';
+    for (let h = 0; h < 24; h++) {
+        html += `<div class="time-slot">${h.toString().padStart(2, '0')}:00</div>`;
+    }
+    html += '</div>';
+
+    for (let i = 0; i < 7; i++) {
+        const date = new Date(weekStart);
+        date.setDate(date.getDate() + i);
+
+        html += `<div class="day-column" onclick="openCreateEventModal('${date.toISOString()}')">`;
+        for (let h = 0; h < 24; h++) {
+            html += '<div class="hour-line"></div>';
+        }
+
+        // Render timed events
+        const dayEvents = events.filter(e => !e.allDay && new Date(e.start).toDateString() === date.toDateString());
+        dayEvents.forEach(event => {
+            const startHour = new Date(event.start).getHours() + new Date(event.start).getMinutes() / 60;
+            const endHour = new Date(event.end).getHours() + new Date(event.end).getMinutes() / 60;
+            const top = startHour * 60;
+            const height = Math.max((endHour - startHour) * 60, 20);
+
+            html += `
+                <div class="event-time" style="background: ${event.color}; top: ${top}px; height: ${height}px;" onclick="event.stopPropagation(); openEditEventModal(${event.id})">
+                    <div class="event-title">${event.title}</div>
+                    <div class="event-time-text">${formatTime(new Date(event.start))} - ${formatTime(new Date(event.end))}</div>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function renderDayView(container) {
+    const today = new Date();
+    const isToday = today.toDateString() === currentDate.toDateString();
+
+    let html = '<div class="time-grid-header day-view">';
+    html += '<div class="time-corner"></div>';
+    html += `
+        <div class="day-header ${isToday ? 'today' : ''}">
+            <div class="day-name">${dayNames[currentDate.getDay() === 0 ? 6 : currentDate.getDay() - 1]}</div>
+            <div class="day-number">${currentDate.getDate()}</div>
+        </div>
+    `;
+    html += '</div>';
+
+    // All day events
+    html += '<div class="all-day-row day-view">';
+    html += '<div class="all-day-label">Koko päivä</div>';
+    const allDayEvents = events.filter(e => e.allDay && new Date(e.start).toDateString() === currentDate.toDateString());
+    html += '<div class="all-day-cell">';
+    allDayEvents.forEach(event => {
+        html += `<div class="event" style="background: ${event.color}" onclick="openEditEventModal(${event.id})">${event.title}</div>`;
+    });
+    html += '</div></div>';
+
+    // Time grid
+    html += '<div class="time-grid day-view">';
+    html += '<div class="time-column">';
+    for (let h = 0; h < 24; h++) {
+        html += `<div class="time-slot">${h.toString().padStart(2, '0')}:00</div>`;
+    }
+    html += '</div>';
+
+    html += `<div class="day-column" onclick="openCreateEventModal('${currentDate.toISOString()}')">`;
+    for (let h = 0; h < 24; h++) {
+        html += '<div class="hour-line"></div>';
+    }
+
+    // Render timed events
+    const dayEvents = events.filter(e => !e.allDay && new Date(e.start).toDateString() === currentDate.toDateString());
+    dayEvents.forEach(event => {
+        const startHour = new Date(event.start).getHours() + new Date(event.start).getMinutes() / 60;
+        const endHour = new Date(event.end).getHours() + new Date(event.end).getMinutes() / 60;
+        const top = startHour * 60;
+        const height = Math.max((endHour - startHour) * 60, 20);
+
+        html += `
+            <div class="event-time" style="background: ${event.color}; top: ${top}px; height: ${height}px;" onclick="event.stopPropagation(); openEditEventModal(${event.id})">
+                <div class="event-title">${event.title}</div>
+                <div class="event-time-text">${formatTime(new Date(event.start))} - ${formatTime(new Date(event.end))}</div>
+            </div>
+        `;
+    });
+
+    html += '</div></div>';
+    container.innerHTML = html;
+}
+
+function formatTime(date) {
+    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+}
+
+// Event Modal Functions
+function openCreateEventModal(dateStr = null) {
+    const modal = document.getElementById('eventModal');
+    document.getElementById('eventModalTitle').textContent = 'Luo tapahtuma';
+    document.getElementById('deleteEventBtn').style.display = 'none';
+    document.getElementById('eventId').value = '';
+    document.getElementById('eventTitle').value = '';
+    document.getElementById('eventDescription').value = '';
+    document.getElementById('eventLocation').value = '';
+    document.getElementById('eventAllDay').checked = false;
+
+    const date = dateStr ? new Date(dateStr) : new Date();
+    const startTime = new Date(date);
+    startTime.setHours(9, 0, 0, 0);
+    const endTime = new Date(date);
+    endTime.setHours(10, 0, 0, 0);
+
+    document.getElementById('eventStart').value = formatDateTimeLocal(startTime);
+    document.getElementById('eventEnd').value = formatDateTimeLocal(endTime);
+
+    // Reset color selection
+    document.querySelectorAll('#eventColorPicker .color-option').forEach(o => o.classList.remove('selected'));
+    document.querySelector('#eventColorPicker .color-option[data-color="#5a9ba8"]').classList.add('selected');
+    selectedEventColor = '#5a9ba8';
+
+    modal.classList.add('active');
+}
+
+function openEditEventModal(eventId) {
+    const event = events.find(e => e.id === eventId);
+    if (!event) return;
+
+    const modal = document.getElementById('eventModal');
+    document.getElementById('eventModalTitle').textContent = 'Muokkaa tapahtumaa';
+    document.getElementById('deleteEventBtn').style.display = event.isManual ? 'block' : 'none';
+    document.getElementById('eventId').value = event.id;
+    document.getElementById('eventTitle').value = event.title;
+    document.getElementById('eventDescription').value = event.description || '';
+    document.getElementById('eventLocation').value = event.location || '';
+    document.getElementById('eventAllDay').checked = event.allDay;
+    document.getElementById('eventStart').value = formatDateTimeLocal(new Date(event.start));
+    document.getElementById('eventEnd').value = formatDateTimeLocal(new Date(event.end));
+
+    // Set color selection
+    document.querySelectorAll('#eventColorPicker .color-option').forEach(o => {
+        o.classList.toggle('selected', o.dataset.color === event.color);
+    });
+    selectedEventColor = event.color;
+
+    modal.classList.add('active');
+}
+
+function closeEventModal() {
+    document.getElementById('eventModal').classList.remove('active');
+}
+
+function formatDateTimeLocal(date) {
+    return date.getFullYear() + '-' +
+           String(date.getMonth() + 1).padStart(2, '0') + '-' +
+           String(date.getDate()).padStart(2, '0') + 'T' +
+           String(date.getHours()).padStart(2, '0') + ':' +
+           String(date.getMinutes()).padStart(2, '0');
+}
+
+async function saveEvent() {
+    const eventId = document.getElementById('eventId').value;
+    const data = {
+        title: document.getElementById('eventTitle').value,
+        description: document.getElementById('eventDescription').value,
+        location: document.getElementById('eventLocation').value,
+        allDay: document.getElementById('eventAllDay').checked,
+        start: document.getElementById('eventStart').value,
+        end: document.getElementById('eventEnd').value,
+        color: selectedEventColor
+    };
+
+    if (!data.title) {
+        alert('Anna tapahtumalle otsikko');
+        return;
+    }
+
+    try {
+        let response;
+        if (eventId) {
+            response = await fetch(`/api/calendar/events/${eventId}/`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+        } else {
+            response = await fetch('/api/calendar/events/create/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+        }
+
+        const result = await response.json();
+        if (result.status === 'success') {
+            closeEventModal();
+            loadEvents();
+        } else {
+            alert('Virhe: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Error saving event:', error);
+        alert('Tapahtuman tallennus epaonnistui');
+    }
+}
+
+async function deleteEvent() {
+    const eventId = document.getElementById('eventId').value;
+    if (!eventId) return;
+
+    if (!confirm('Haluatko varmasti poistaa taman tapahtuman?')) return;
+
+    try {
+        const response = await fetch(`/api/calendar/events/${eventId}/delete/`, {
+            method: 'DELETE'
+        });
+
+        const result = await response.json();
+        if (result.status === 'success') {
+            closeEventModal();
+            loadEvents();
+        } else {
+            alert('Virhe: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Error deleting event:', error);
+        alert('Tapahtuman poisto epaonnistui');
+    }
+}
+
+// Source Modal Functions
+function openAddSourceModal() {
+    document.getElementById('sourceModal').classList.add('active');
+    document.getElementById('sourceName').value = '';
+    document.getElementById('sourceUrl').value = '';
+
+    // Reset color selection
+    document.querySelectorAll('#sourceColorPicker .color-option').forEach(o => o.classList.remove('selected'));
+    document.querySelector('#sourceColorPicker .color-option[data-color="#5a9ba8"]').classList.add('selected');
+    selectedSourceColor = '#5a9ba8';
+}
+
+function closeSourceModal() {
+    document.getElementById('sourceModal').classList.remove('active');
+}
+
+async function addSource() {
+    const name = document.getElementById('sourceName').value;
+    const url = document.getElementById('sourceUrl').value;
+
+    if (!name || !url) {
+        alert('Tayta kaikki kentat');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/calendar/sources/add/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: name,
+                url: url,
+                color: selectedSourceColor
+            })
+        });
+
+        const result = await response.json();
+        if (result.status === 'success') {
+            closeSourceModal();
+            loadSources();
+            loadEvents();
+        } else {
+            alert('Virhe: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Error adding source:', error);
+        alert('Kalenterin lisays epaonnistui');
+    }
+}
+
+async function syncSource(sourceId) {
+    try {
+        const response = await fetch(`/api/calendar/sources/${sourceId}/sync/`, {
+            method: 'POST'
+        });
+
+        const result = await response.json();
+        if (result.status === 'success') {
+            loadEvents();
+            alert('Kalenteri synkronoitu!');
+        } else {
+            alert('Virhe: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Error syncing source:', error);
+        alert('Synkronointi epaonnistui');
+    }
+}
+
+async function deleteSource(sourceId) {
+    if (!confirm('Haluatko varmasti poistaa taman kalenterin ja kaikki sen tapahtumat?')) return;
+
+    try {
+        const response = await fetch(`/api/calendar/sources/${sourceId}/delete/`, {
+            method: 'DELETE'
+        });
+
+        const result = await response.json();
+        if (result.status === 'success') {
+            loadSources();
+            loadEvents();
+        } else {
+            alert('Virhe: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Error deleting source:', error);
+        alert('Kalenterin poisto epaonnistui');
+    }
+}
+</script>
+{% endblock %}

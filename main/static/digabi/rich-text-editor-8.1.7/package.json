@@ -1,0 +1,72 @@
+{
+  "name": "rich-text-editor",
+  "version": "8.1.7",
+  "description": "Rich text editor",
+  "homepage": "https://github.com/digabi/rich-text-editor",
+  "types": "dist/app/index.d.ts",
+  "main": "dist/app/index.js",
+  "files": [
+    "dist/*",
+    "server/*"
+  ],
+  "scripts": {
+    "generateMathButtons": "scripts/createMathSvg.js && prettier --write src/latexCommandsWithSvg.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test:ct": "playwright test -c playwright-ct.config.ts",
+    "test": "npm run typecheck && npm run lint && npm run test:ct",
+    "build:bundle": "npx esbuild ./src/rich-text-editor-bundle.ts --outfile=./dist/rich-text-editor-bundle.js --allow-overwrite --bundle --minify",
+    "build:npm": "npx tsc -p ./tsconfig.build.json",
+    "build": "rm -rf dist && npm run build:bundle && npm run build:npm",
+    "dev": "esbuild --serve=localhost:1234 src/rich-text-editor-bundle.ts --outfile=dev/js/index.js --bundle --servedir=dev --watch",
+    "dev-server": "ts-node dev-server.ts",
+    "watch": "concurrently -n='ESBUILD,DEVSERVER' -c=auto 'npm run dev' 'npm run dev-server'",
+    "prepare": "PREPARE=true npm run test && npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/digabi/rich-text-editor.git"
+  },
+  "devDependencies": {
+    "@digabi/eslint-config": "^3.3.0",
+    "@playwright/experimental-ct-react": "^1.48.1",
+    "@types/node": "^22.7.9",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@typescript-eslint/eslint-plugin": "^7.2.0",
+    "@typescript-eslint/parser": "^7.2.0",
+    "buffer": "^6.0.3",
+    "concurrently": "^9.0.1",
+    "esbuild": "^0.24.0",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "eslint-plugin-promise": "^7.1.0",
+    "express": "^4.21.1",
+    "prettier": "^3.3.3",
+    "process": "^0.11.10",
+    "sanitize-html": "^2.13.1",
+    "ts-loader": "^9.5.1",
+    "ts-node": "^10.9.2",
+    "tslib": "^2.8.0",
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "@digabi/mathquill": "^0.10.12",
+    "@playwright/test": "^1.48.1",
+    "@types/express": "^4.17.21",
+    "@types/jquery": "^3.5.32",
+    "@types/sanitize-html": "^2.13.0",
+    "classnames": "^2.5.1",
+    "jquery": "^3.7.1",
+    "mathjax-node": "^2.1.1",
+    "styled-components": "^6.1.13"
+  },
+  "peerDependencies": {
+    "jquery": "^3.7.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "sanitize-html": "^2.0.0"
+  }
+}

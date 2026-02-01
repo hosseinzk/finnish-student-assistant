@@ -1,0 +1,492 @@
+{% extends "main/base.html" %}
+
+{% block title %}<title>Luo koe</title>{% endblock %}
+
+{% block css %}
+<style>
+    .exam-creator-container {
+        min-height: calc(100vh - 48px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 20px;
+        background: var(--color-bg-gradient);
+    }
+
+    .exam-creator-card {
+        background: var(--color-bg-white);
+        border-radius: var(--radius-xl);
+        padding: 50px;
+        max-width: 600px;
+        width: 100%;
+        box-shadow: var(--shadow-lg);
+    }
+
+    .exam-creator-title {
+        font-size: var(--text-3xl);
+        font-weight: 700;
+        color: var(--color-text-primary);
+        margin-bottom: 10px;
+        text-align: center;
+        font-family: var(--font-family-heading);
+        font-style: italic;
+        letter-spacing: var(--tracking-tight);
+    }
+
+    .exam-creator-subtitle {
+        font-size: var(--text-base);
+        color: var(--color-text-muted);
+        margin-bottom: 40px;
+        text-align: center;
+        line-height: var(--leading-relaxed);
+    }
+
+    .form-group {
+        margin-bottom: 25px;
+    }
+
+    .form-label {
+        display: block;
+        font-weight: 600;
+        color: var(--color-text-dark);
+        margin-bottom: 8px;
+        font-size: var(--text-sm);
+        letter-spacing: var(--tracking-wide);
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 14px 18px;
+        border: 2px solid var(--color-border-light);
+        border-radius: var(--radius-md);
+        font-size: var(--text-base);
+        font-family: var(--font-family-primary);
+        transition: var(--transition-normal);
+        box-sizing: border-box;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 3px rgba(90, 155, 168, 0.1);
+    }
+
+    .form-textarea {
+        min-height: 120px;
+        resize: vertical;
+    }
+
+    .question-range {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .range-input {
+        flex: 1;
+        -webkit-appearance: none;
+        height: 8px;
+        border-radius: 4px;
+        background: var(--color-border-light);
+        outline: none;
+    }
+
+    .range-input::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: var(--color-primary);
+        cursor: pointer;
+        box-shadow: var(--shadow-primary);
+    }
+
+    .range-input::-moz-range-thumb {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: var(--color-primary);
+        cursor: pointer;
+        border: none;
+    }
+
+    .range-value {
+        min-width: 50px;
+        text-align: center;
+        font-weight: 700;
+        font-size: var(--text-lg);
+        color: var(--color-primary);
+    }
+
+    .submit-btn {
+        width: 100%;
+        padding: 16px;
+        background: var(--color-primary);
+        color: white;
+        border: none;
+        border-radius: var(--radius-md);
+        font-size: var(--text-lg);
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition-normal);
+        margin-top: 20px;
+        font-family: var(--font-family-primary);
+        letter-spacing: var(--tracking-wide);
+    }
+
+    .submit-btn:hover:not(:disabled) {
+        background: var(--color-primary-dark);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-primary);
+    }
+
+    .submit-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    /* Loading State */
+    .loading-container {
+        display: none;
+        text-align: center;
+        padding: 60px 20px;
+    }
+
+    .loading-container.active {
+        display: block;
+    }
+
+    .form-container.hidden {
+        display: none;
+    }
+
+    .loading-spinner {
+        width: 60px;
+        height: 60px;
+        border: 4px solid var(--color-border-light);
+        border-top: 4px solid var(--color-primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 30px;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+        font-size: var(--text-xl);
+        color: var(--color-text-muted);
+        margin-bottom: 10px;
+    }
+
+    .loading-subject {
+        font-size: var(--text-base);
+        color: var(--color-primary);
+        font-weight: 600;
+    }
+
+    .cancel-btn {
+        margin-top: 30px;
+        padding: 12px 30px;
+        background: transparent;
+        color: var(--color-text-muted);
+        border: 2px solid var(--color-border-light);
+        border-radius: var(--radius-md);
+        font-size: var(--text-sm);
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition-normal);
+        font-family: var(--font-family-primary);
+    }
+
+    .cancel-btn:hover {
+        border-color: var(--color-primary);
+        color: var(--color-primary);
+    }
+
+    /* Error State */
+    .error-container {
+        display: none;
+        text-align: center;
+        padding: 60px 20px;
+    }
+
+    .error-container.active {
+        display: block;
+    }
+
+    .error-icon {
+        font-size: 60px;
+        margin-bottom: 20px;
+        color: var(--color-text-muted);
+    }
+
+    .error-title {
+        font-size: var(--text-2xl);
+        color: var(--color-error);
+        margin-bottom: 15px;
+        font-weight: 700;
+        font-family: var(--font-family-heading);
+    }
+
+    .error-message {
+        font-size: var(--text-base);
+        color: var(--color-text-muted);
+        margin-bottom: 30px;
+        line-height: var(--leading-relaxed);
+        padding: 15px;
+        background: var(--color-error-light);
+        border-radius: var(--radius-md);
+        border: 1px solid #fecaca;
+    }
+
+    .retry-btn {
+        padding: 14px 40px;
+        background: var(--color-primary);
+        color: white;
+        border: none;
+        border-radius: var(--radius-md);
+        font-size: var(--text-base);
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition-normal);
+        font-family: var(--font-family-primary);
+        letter-spacing: var(--tracking-wide);
+    }
+
+    .retry-btn:hover {
+        background: var(--color-primary-dark);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-primary);
+    }
+
+    .history-link {
+        display: block;
+        text-align: center;
+        margin-top: 25px;
+        padding-top: 25px;
+        border-top: 1px solid var(--color-border-light);
+    }
+
+    .history-link a {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--color-primary);
+        text-decoration: none;
+        font-size: var(--text-sm);
+        font-weight: 500;
+        transition: var(--transition-normal);
+    }
+
+    .history-link a:hover {
+        color: var(--color-primary-dark);
+        gap: 12px;
+    }
+
+    .history-link svg {
+        transition: transform 0.3s ease;
+    }
+
+    .history-link a:hover svg {
+        transform: translateX(3px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="exam-creator-container">
+    <div class="exam-creator-card">
+        <!-- Form State -->
+        <div class="form-container" id="formContainer">
+            <h1 class="exam-creator-title">Luo harjoituskoe</h1>
+            <p class="exam-creator-subtitle">Kuvaile aihe ja valitse kysymysten määrä</p>
+
+            <form id="examForm">
+                <div class="form-group">
+                    <label class="form-label">Aihe ja kuvaus</label>
+                    <textarea
+                        class="form-input form-textarea"
+                        id="subjectInput"
+                        placeholder="Esim: Luo koe FY04-kurssista ja Newtonin kolmesta laista."
+                        required
+                    ></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Kysymysten määrä</label>
+                    <div class="question-range">
+                        <input
+                            type="range"
+                            class="range-input"
+                            id="numQuestions"
+                            min="2"
+                            max="7"
+                            value="5"
+                        >
+                        <span class="range-value" id="rangeValue">5</span>
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-btn" id="submitBtn">
+                    Luo koe
+                </button>
+            </form>
+
+            <div class="history-link">
+                <a href="{% url 'exam_history' %}">
+                    Tarkastele aikaisempia kokeita
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </a>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div class="loading-container" id="loadingContainer">
+            <div class="loading-spinner"></div>
+            <p class="loading-text">Luodaan koetta...</p>
+            <p class="loading-subject" id="loadingSubject"></p>
+            <button class="cancel-btn" onclick="cancelRequest()">Peruuta</button>
+        </div>
+
+        <!-- Error State -->
+        <div class="error-container" id="errorContainer">
+            <div class="error-icon">:(</div>
+            <h2 class="error-title">Virhe kokeen luomisessa</h2>
+            <p class="error-message" id="errorMessage"></p>
+            <button class="retry-btn" onclick="showForm()">Yrita uudelleen</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentRequestId = {% if pending_request %}'{{ pending_request.request_id }}'{% else %}null{% endif %};
+    let pollInterval = null;
+
+    // Range slider value display
+    const rangeInput = document.getElementById('numQuestions');
+    const rangeValue = document.getElementById('rangeValue');
+
+    rangeInput.addEventListener('input', function() {
+        rangeValue.textContent = this.value;
+    });
+
+    // Form submission
+    document.getElementById('examForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const subject = document.getElementById('subjectInput').value.trim();
+        const numQuestions = parseInt(document.getElementById('numQuestions').value);
+
+        if (!subject) {
+            alert('Kirjoita aiheen kuvaus');
+            return;
+        }
+
+        showLoading(subject);
+
+        try {
+            const response = await fetch('/api/request-exam/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    subject: subject,
+                    num_questions: numQuestions
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                currentRequestId = data.request_id;
+                startPolling();
+            } else {
+                showError(data.message || 'Tuntematon virhe');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showError('Verkkovirhe. Yrita uudelleen.');
+        }
+    });
+
+    function showForm() {
+        document.getElementById('formContainer').classList.remove('hidden');
+        document.getElementById('loadingContainer').classList.remove('active');
+        document.getElementById('errorContainer').classList.remove('active');
+        stopPolling();
+    }
+
+    function showLoading(subject) {
+        document.getElementById('formContainer').classList.add('hidden');
+        document.getElementById('loadingContainer').classList.add('active');
+        document.getElementById('errorContainer').classList.remove('active');
+        document.getElementById('loadingSubject').textContent = subject;
+    }
+
+    function showError(message) {
+        document.getElementById('formContainer').classList.add('hidden');
+        document.getElementById('loadingContainer').classList.remove('active');
+        document.getElementById('errorContainer').classList.add('active');
+        document.getElementById('errorMessage').textContent = message;
+        stopPolling();
+    }
+
+    function startPolling() {
+        if (pollInterval) clearInterval(pollInterval);
+        pollInterval = setInterval(checkStatus, 2000);
+    }
+
+    function stopPolling() {
+        if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+        }
+    }
+
+    async function checkStatus() {
+        if (!currentRequestId) return;
+
+        try {
+            const response = await fetch(`/api/exam-request-status/${currentRequestId}/`);
+            const data = await response.json();
+
+            if (data.status === 'completed' && data.exam_id) {
+                stopPolling();
+                window.location.href = `/exam/${data.exam_id}/`;
+            } else if (data.status === 'error') {
+                showError(data.error_message || 'Kokeen luominen epaonnistui');
+            }
+            // If still processing, continue polling
+        } catch (error) {
+            console.error('Polling error:', error);
+        }
+    }
+
+    async function cancelRequest() {
+        try {
+            await fetch('/api/cancel-exam-request/', { method: 'POST' });
+        } catch (e) {
+            console.error('Cancel error:', e);
+        }
+        showForm();
+        currentRequestId = null;
+    }
+
+    // Check if there's a pending request on page load
+    {% if pending_request %}
+    document.addEventListener('DOMContentLoaded', function() {
+        showLoading('{{ pending_request.subject|escapejs }}');
+        startPolling();
+    });
+    {% else %}
+    // Auto-focus the subject input field so user can start typing immediately
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('subjectInput').focus();
+    });
+    {% endif %}
+</script>
+{% endblock %}
