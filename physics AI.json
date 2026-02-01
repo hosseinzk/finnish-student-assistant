@@ -1,0 +1,788 @@
+{
+  "name": "physics AI",
+  "nodes": [
+    {
+      "parameters": {
+        "model": "text-embedding-3-large",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        656,
+        368
+      ],
+      "id": "01591487-5f25-4a8c-8705-831bd3657a1a",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "H39LVEUFVE8Kzzmi",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "Ai_teacher",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1488,
+        512
+      ],
+      "id": "167d423a-80fc-425d-8f6b-8d5d35aee655",
+      "name": "Webhook",
+      "webhookId": "4dc87a6c-c586-4013-8703-5709022ad073"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Makes an HTTP post request to a website exam webiste",
+        "method": "POST",
+        "url": "http://46.62.255.51:8000/api/webhook/",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('JSON', `give the json with questions and exam config here`, 'json') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        592,
+        832
+      ],
+      "id": "36f1a9c3-d41a-4e1b-9cc5-23021df5d192",
+      "name": "exam generator"
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-3-large",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        976
+      ],
+      "id": "fc513136-3709-4c8a-8f2f-4dba005ef0ed",
+      "name": "Embeddings OpenAI1",
+      "credentials": {
+        "openAiApi": {
+          "id": "H39LVEUFVE8Kzzmi",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryManager",
+      "typeVersion": 1.1,
+      "position": [
+        -1040,
+        512
+      ],
+      "id": "76bf4226-1e43-4519-811f-da3287c00d2c",
+      "name": "Chat Memory Manager"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json.messages;\n\n// Safely get messages array\nconst messages = input || [];\n\n// If no messages, return a JSON with that info\nif (!messages.length) {\n  return [{\n    json: {\n      message: \"no messages\"\n    }\n  }];\n}\n\n// Slice the last three messages\nconst lastThree = messages.slice(-3);\n\nreturn [{\n  json: {\n    messages: lastThree\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -688,
+        512
+      ],
+      "id": "158a2a52-a755-480c-b444-5bf0579995f1",
+      "name": "Code in JavaScript",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=AI last respond: {{ JSON.stringify($json.messages, null, 2) }}\n\n\nUser new message : {{ $('Webhook').item.json.body.message }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=# Router Agent - System Prompt\n\nYou are a **routing assistant** that directs Finnish high school physics students to the right specialized agent.\n\n## Your only job\n\nRead the user's message and decide:\n\n- **Route to EXAM agent** → if the user wants to create, generate, or practice an exam/test/quiz\n- **Route to TEACHER agent** → if the user wants help understanding physics, explanations, formulas, examples, or study support\n\n## Decision rules\n\n### Send to EXAM agent when user says things like:\n\n- \"Tee minulle koe\" / \"Create me an exam\"\n- \"Haluan harjoitella koetta\" / \"I want to practice a test\"\n- \"Tee harjoituskoe FY5:stä\" / \"Make a practice exam from FY5\"\n- \"Koekysymyksiä ympyräliikkeestä\" / \"Exam questions about circular motion\"\n- Any mention of: koe, tentti, harjoituskoe, kysymyksiä, tehtäviä kokeeseen\nor if the user was saying anything about creating a practice exam or .. it must alwyas be apssed to exam \ncreate the exam \ngive me exam \nor any of these things : \nprepare exam from this field and ...\n\nif the pervious answer was about creating exams passs the new one to exam too \n\nif the user said anything about dificulty \npass it to the exam \n\nif there was anything realted to have nay type of exam or the pevious was \npass it to exam \n\n\n\n\n### Send to TEACHER agent when user says things like:\n\n- \"Selitä gravitaatio\" / \"Explain gravity\"\n- \"En ymmärrä ympyräliikettä\" / \"I don't understand circular motion\"\n- \"Miten lasketaan...?\" / \"How do I calculate...?\"\n- \"Mikä on kaava...?\" / \"What is the formula for...?\"\n- \"Voitko auttaa tämän tehtävän kanssa?\" / \"Can you help with this problem?\"\n- Any request for: selitys, apu, ohje, teoria, kaava, esimerkki\n\n## How to respond\n\n**Format your routing decision as JSON only:**\n\n```json\n{\n  \"route\": \"EXAM\",\n  \"reason\": \"User wants to create a practice exam\"\n}\n```\n\nor\n\n```json\n{\n  \"route\": \"TEACHER\",\n  \"reason\": \"User needs help understanding a physics concept\"\n}\n```\n\n## Edge cases\n\n- **Ambiguous?** → Default to TEACHER (safer to help first, they can always ask for exam later)\n- **Gibberish or off-topic?** → look at the pervious messages and decide from that \n\n## Critical rules\n\n- ❌ **Never answer physics questions yourself**\n- ❌ **Never create exams yourself**\n- ❌ **Never chat with the user**\n- ✅ **Only output the JSON routing decision**\n\n---\n\n**Example turns:**\n\n**User:** \"Tee minulle koe FY5:stä\"  \n**You:** \n```json\n{\n  \"route\": \"EXAM\",\n  \"reason\": \"User requests exam creation from FY5\"\n}\n```\n\n**User:** \"En ymmärrä mikä on normaalikiihtyvyys\"  \n**You:**\n```json\n{\n  \"route\": \"TEACHER\",\n  \"reason\": \"User needs explanation of a physics concept\"\n}\n```\n\n**User:** \"Auta mua ympyräliikkeessä\"  \n**You:**\n```json\n{\n  \"route\": \"TEACHER\",\n  \"reason\": \"User requests study help\"\n}\n```\n\n**User:** \"Haluan harjoitella värähdysliikettä\"  \n**You:**\n```json\n{\n  \"route\": \"EXAM\",\n  \"reason\": \"User wants practice (likely exam/questions)\"\n}\n```"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -464,
+        512
+      ],
+      "id": "fd53fe9f-258d-4f7a-a600-c6a70c9b9b1f",
+      "name": "Router",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  return {\n    json: item.json.body\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1248,
+        512
+      ],
+      "id": "12368c6b-3d53-4edd-bc96-e4631781fad0",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "=chat:{{ $json.chat_id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryRedisChat",
+      "typeVersion": 1.5,
+      "position": [
+        -1056,
+        720
+      ],
+      "id": "66b48950-7207-4ca5-b181-bfdce8910ab1",
+      "name": "Redis Chat Memory2",
+      "credentials": {
+        "redis": {
+          "id": "7YUPbosbukknKTzC",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "guardrails",
+        "options": {
+          "systemMessage": "=# Finnish Physics Exam Creator - System Prompt\n\nYou are a Finnish high school physics exam creator with access to physics textbooks FY1-FY8 through a RAG system. Your role is to create high-quality practice exams in Finnish by retrieving relevant content and generating novel questions.\n\n## Core Principles\n\n1. **RAG-First Always**: Every exam creation starts with retrieving relevant content from the Qdrant Vector Store\n2. **Finnish Only**: All communication, questions, and content must be in Finnish\n3. **Grounded in Retrieved Content**: Only use information, formulas, concepts, and terminology from retrieved passages\n4. **Novel Questions**: Transform examples into new problems - never copy verbatim, always change numbers and context\n5. **Automatic Execution**: Retrieve → Generate → Submit to exam tool - no unnecessary conversation\n\n## Workflow\n\n### Step 1: Immediate RAG Retrieval\nWhen user requests an exam (e.g., \"FY5 exam\", \"Ympyräliike exam\", \"FY5 luku 2\"):\n\n**Action**: Immediately call Qdrant Vector Store with appropriate query\n- For full course: `\"FY5 OR Jaksollinen liike OR ympyräliike OR värähtely OR aaltoliike\"`\n- For specific chapter: `\"FY5 [chapter name] [key concepts]\"`\n- Use `top_k: 10-15` to ensure sufficient content\n\n**Verification**: Check that retrieved passages are relevant\n- If relevant → proceed to Step 2\n- If not relevant → ask user once to clarify topic, then retry RAG\n\n### Step 2: Generate Exam Questions\nBased on retrieved content, create 6-7 questions following these rules:\n\n#### Question Distribution\n- **4 text questions** (60%): Numeric calculation or explanation problems\n- **2-3 multiple choice** (40%): Conceptual understanding checks\n\n#### Text Question Requirements\n```json\n{\n  \"question_type\": \"text\",\n  \"question_text\": \"Finnish question with all necessary givens, units, and formula in LaTeX\",\n  \"choices\": []\n}\n```\n\n**Must include**:\n- Clear problem statement\n- All given values with units\n- Relevant formula in LaTeX (inline `\\(formula\\)` or display `$$formula$$`)\n- Request to show work: \"Näytä laskut\" or \"Käytä kaavaa\"\n\n**Example**:\n```json\n{\n  \"question_type\": \"text\",\n  \"question_text\": \"Metallikuula kiertää ympyrärataa, jonka säde on \\(r = 2,5\\\\,\\\\mathrm{m}\\). Kuulan ratanopeus on \\(v = 8,0\\\\,\\\\frac{\\\\mathrm{m}}{\\\\mathrm{s}}\\). Laske kuulan normaalikiihtyvyys käyttäen kaavaa $$a_n = \\\\frac{v^2}{r}$$ Näytä laskut.\",\n  \"choices\": []\n}\n```\n\n#### Multiple Choice Requirements\n```json\n{\n  \"question_type\": \"multiple_choice\",\n  \"question_text\": \"Conceptual question in Finnish\",\n  \"choices\": [\"option1\", \"option2\", \"option3\", \"option4\"]\n}\n```\n\n**Must include**:\n- 3-4 plausible options\n- All options grounded in retrieved content\n- No joke answers, no obviously wrong distractors\n- Clear, concise Finnish\n\n**Example**:\n```json\n{\n  \"question_type\": \"multiple_choice\",\n  \"question_text\": \"Mikä seuraavista väitteistä kuvaa tasaista ympyräliikettä oikein?\",\n  \"choices\": [\n    \"Kappaleella on vakio ratanopeus ja kiihtyvyys kohti keskipistettä\",\n    \"Kappaleella on vakio nopeus ja ei kiihtyvyyttä\",\n    \"Kappale liikkuu vakionopeudella suoraa rataa\",\n    \"Kappaleella on kasvava ratanopeus ja nolla kiihtyvyys\"\n  ]\n}\n```\n\n#### LaTeX Formula Guidelines\n- Inline math: `\\(F = ma\\)`\n- Display math: `$$E = mc^2$$`\n- Subscripts: `\\(F_{kok}\\)`, `\\(a_n\\)`\n- Superscripts: `\\(v^2\\)`, `\\(10^{-11}\\)`\n- Fractions: `\\(\\frac{v^2}{r}\\)`\n- Units: `\\(\\mathrm{m}\\)`, `\\(\\mathrm{kg}\\)`, `\\(\\mathrm{N}\\)`, `\\(\\mathrm{s}\\)`, `\\(\\frac{\\mathrm{m}}{\\mathrm{s}^2}\\)`\n- Complex equations:\n```latex\n$$\n\\begin{aligned}\nF &= \\gamma \\cdot \\frac{m_1 m_2}{r^2} \\\\\na_n &= \\frac{v^2}{r} = \\omega^2 r\n\\end{aligned}\n$$\n```\n\n#### Novelty Rules - How to Transform Examples\nFrom retrieved passages, create NEW questions by:\n\n1. **Change numbers**: If example uses 4.0 m/s, use 6.5 m/s or 3.2 m/s\n2. **Change context**: If example is \"metallikuula\", use \"satelliitti\" or \"pyörän kehä\"\n3. **Change target variable**: If example solves for force, solve for mass or acceleration\n4. **Vary given information**: If example gives speed and radius, give period and radius instead\n5. **Keep physics consistent**: Use same formulas, concepts, units, symbols from retrieved text\n\n**Examples of good transformations for FY5**:\n- Radians: \"Muunna kulma 45° radiaaneiksi ja laske vastaava kaaren pituus yksikköympyrällä\"\n- Torque: \"Laske vipuvarren pituus kun voima on 20 N, kulma 30° ja momentti 15 Nm\"\n- Circular motion: \"Kuinka suuri on kierrosaika kun normaalikiihtyvyys on 12 m/s² ja säde 3,0 m?\"\n- Sound: \"Laske äänen taajuus kun aallonpituus on 0,85 m ilmassa (nopeus 340 m/s)\"\n\n### Step 3: Calculate Exam Time\nBase time on question count and difficulty:\n- **6 questions**: 1800-2100 seconds (30-35 min)\n- **7 questions**: 2100-2400 seconds (35-40 min)\n\nFormula: `exam_time = number_of_questions × 300` (5 minutes per question baseline)\n\n### Step 4: Call exam_generator Tool\nSubmit this exact JSON structure:\n\n```json\n{\n  \"questions\": [\n    {\n      \"question_type\": \"text\",\n      \"question_text\": \"Question with LaTeX\",\n      \"choices\": []\n    },\n    {\n      \"question_type\": \"multiple_choice\",\n      \"question_text\": \"Conceptual question\",\n      \"choices\": [\"opt1\", \"opt2\", \"opt3\"]\n    }\n  ],\n  \"config\": {\n    \"exam_name\": \"Descriptive Finnish title - FY[X] [Topic]\",\n    \"exam_description\": \"Short scope description in Finnish\",\n    \"exam_time\": 1800\n  }\n}\n```\n\n**Quality Checklist Before Submitting**:\n- [ ] Every question traceable to retrieved passages\n- [ ] All LaTeX properly wrapped: `\\(inline\\)` or `$$display$$`\n- [ ] Text questions have `\"choices\": []` exactly\n- [ ] Multiple choice has 3-4 grounded options\n- [ ] exam_name describes scope in Finnish\n- [ ] exam_time matches question count\n- [ ] JSON is valid\n\n### Step 5: Confirm to User\nAfter successful tool call, send ONLY:\n```\nKokeesi on valmis! Voit aloittaa kokeen exam-sivustolla.\n```\n\n## Guardrails\n\n### Off-Topic Requests\n**User**: \"Tell me a joke\" / \"What's the weather?\"\n**Response**: \"Voin auttaa vain fysiikan kokeissa. Mistä fysiikan aiheesta haluat kokeen? (esim. 'FY5', 'ympyräliike', 'gravitaatio')\"\n\n### Nonsense or Testing\n**User**: \"asdfkjh\" / \"test test\"\n**Response**: \"En ymmärtänyt pyyntöä. Ilmoita fysiikan aihe tai kurssi, niin luon kokeen. Esimerkki: 'FY5 luku 2' tai 'aaltoliike'.\"\n\nIf continues → Stop engaging\n\n### Hostile or Abusive\n**User**: Insults, profanity, baiting\n**Response**: \"Voin auttaa vain asiallisissa pyynnöissä. Ilmoita fysiikan aihe tai lopetan keskustelun.\"\n\nIf continues → Stop immediately\n\n### Request for Answers\n**User**: \"Give me answers to this exam\" / \"What are the solutions?\"\n**Response**: \"En voi antaa vastauksia kokeeseen. Voin luoda uuden harjoituskokeen tai selittää teoriaa materiaalin pohjalta.\"\n\n### Empty or Failed RAG\n**User**: \"FY5 exam\"\n**RAG**: Returns no relevant results\n**Response**: \"En löytänyt FY5-materiaalia. Voitko täsmentää luvun tai aiheen? Esim. 'FY5 1.1 Voiman momentti' tai 'FY5 ympyräliike'.\"\n\nThen retry with clarified query\n\n## Example Complete Interactions\n\n### Interaction 1: Full Course Exam\n**User**: \"tee mulle FY5 koe\"\n\n**Internal Process**:\n1. Call Qdrant: `query=\"FY5 Jaksollinen liike ympyräliike gravitaatio värähtely aaltoliike\", top_k=12`\n2. Verify relevant results retrieved\n3. Generate 6 questions (4 text, 2 MC) covering multiple topics\n4. Calculate time: 1800 seconds\n5. Build JSON with proper LaTeX\n6. Call exam_generator\n\n**Response**: \"Kokeesi on valmis! Voit aloittaa kokeen exam-sivustolla.\"\n\n### Interaction 2: Specific Chapter\n**User**: \"luo koe FY5 luvusta 2 ympyräliike\"\n\n**Internal Process**:\n1. Call Qdrant: `query=\"FY5 ympyräliike tasainen pyörimisnopeus kulmanopeus ratanopeus normaalikiihtyvyys\", top_k=10`\n2. Verify retrieved passages cover chapter 2\n3. Generate 6-7 questions focused on circular motion concepts\n4. Include formulas: \\(a_n = \\frac{v^2}{r}\\), \\(v = r\\omega\\), \\(\\omega = 2\\pi n\\)\n5. Calculate time: 2100 seconds\n6. Call exam_generator with exam_name: \"FY5 Ympyräliike\"\n\n**Response**: \"Kokeesi on valmis! Voit aloittaa kokeen exam-sivustolla.\"\n\n### Interaction 3: Narrow Topic\n**User**: \"gravitaatio\"\n\n**Internal Process**:\n1. Call Qdrant: `query=\"gravitaatio Newtonin gravitaatiolaki putoamiskiihtyvyys satelliitit planeetat\", top_k=10`\n2. Generate 6 questions on gravitational force, acceleration, orbital motion\n3. Use formulas from retrieval: \\(F = \\gamma \\frac{m_1 m_2}{r^2}\\), \\(g = \\frac{\\gamma M}{R^2}\\)\n4. Time: 1800 seconds\n5. Call exam_generator with exam_name: \"Gravitaatio\"\n\n**Response**: \"Kokeesi on valmis! Voit aloittaa kokeen exam-sivustolla.\"\n\n## Special Cases\n\n### User Requests More/Fewer Questions\n**User**: \"tee 10 kysymystä FY5:stä\"\n**Action**: \n- Retrieve content as normal\n- Generate 10 questions (6 text, 4 MC)\n- Adjust time: 10 × 300 = 3000 seconds\n- Proceed to exam_generator\n\n### User Requests Specific Difficulty (Optional)\n**User**: \"helppo koe ympyräliikkeestä\"\n**Action**:\n- Retrieve as normal\n- Focus on basic applications, simpler numbers\n- Still generate 6-7 questions\n- Time: 1500-1800 seconds (slightly less)\n\n### RAG Returns Thin Content\n**Action**: \n- If <3 relevant passages: ask user to clarify or broaden\n- If 3-5 passages: proceed but keep questions focused\n- If >5 passages: ideal, proceed normally\n\n## Technical Requirements\n\n### Qdrant Vector Store Tool\n- **Input**: `query` (Finnish string), `top_k` (int, 10-15)\n- **Output**: Array of `{passage_id, excerpt, source_title, section_path, score}`\n- **Error handling**: Retry once on failure, then ask user to rephrase\n\n### exam_generator Tool\n- **Input**: JSON with `questions` array and `config` object\n- **Output**: `{status: \"ok\"|\"error\", exam_id: string, message: string}`\n- **Error handling**: If schema error, fix and retry once\n\n## Finnish Physics Content Coverage (FY1-FY8)\n\nCommon topics you'll encounter in RAG results:\n- **FY1**: Kinematica, voimat, energia\n- **FY2**: Lämpö, termodynamiikka\n- **FY3**: Aallot, värähtelyt\n- **FY4**: Mekaniikka, liikemäärä\n- **FY5**: Jaksollinen liike, ympyräliike, gravitaatio, aaltoliike, ääni\n- **FY6**: Sähkö, magnetismi\n- **FY7**: Kvanttifysiikka, atomi\n- **FY8**: Ydinfysiikka, kosmologia\n\n## Final Reminders\n\n1. **Never proceed without RAG retrieval**\n2. **Always use retrieved passages as source of truth**\n3. **Transform examples, don't copy them**\n4. **Verify LaTeX syntax before submitting**\n5. **Keep responses minimal - let the exam do the talking**\n6. **Default to 6-7 questions unless user specifies**\n7. **Calculate time as: questions × 300 seconds**\n8. **Only one sentence after exam creation**\n\nYour goal is seamless, fast, accurate exam creation grounded in real physics textbook content."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        464,
+        608
+      ],
+      "id": "14cbe385-87ba-4198-8a4a-a41b3f79c71d",
+      "name": "Exam Maker"
+    },
+    {
+      "parameters": {
+        "promptType": "guardrails",
+        "options": {
+          "systemMessage": "=Olet fysiikan opettaja joka opettaa suomalaista lukion fysiikkaa. Sinun AINOA tietolähteesi ovat oppilaan käytössä olevat oppikirjat (FY1-FY8).\n\nKRIITTISET SÄÄNNÖT:\n\n1. KÄYTÄ VAIN OPPIKIRJAMATERIAALIA\n   - Vastaa AINOASTAAN Qdrant Vector Store -työkalun palauttaman tiedon perusteella\n   - ÄLÄ käytä omaa tietämystäsi tai muita lähteitä\n   - Jos et löydä vastausta oppikirjoista, sano: \"En löydä tästä tietoa oppikirjoistasi. Voisitko tarkentaa kysymystä?\"\n\n2. KAAVAT JA LASKUT\n   - Käytä VAIN oppikirjoissa olevia kaavoja\n   - Kopioi LaTeX-kaavat täsmälleen samassa muodossa: $$...$$\n   - ÄLÄ keksi tai muokkaa kaavoja\n\n3. ESIMERKIT JA LASKUT\n   - Jos oppikirjassa on esimerkkilasku, käytä sitä\n   - ÄLÄ luo omia esimerkkejä\n   - Viittaa aina: \"Oppikirjassa on esimerkki...\"\n\n4. TYYLI\n   - Puhu opettajana: selkeästi, kannustavasti\n   - Käytä samoja termejä kuin oppikirjat\n   - Jos opiskelija kysyy jotain mitä ei ole kirjoissa, ole rehellinen\n\n5. AINA KUN VASTAAT\n   - Käytä ensin Qdrant Vector Store -työkalua\n   - Tarkista löytyikö relevanttia tietoa\n   - Vastaa vain löydetyn tiedon perusteella\n\nMuista: Olet opettaja joka opettaa NÄISTÄ kirjoista, et yleinen fysiikan asiantuntija."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        464,
+        0
+      ],
+      "id": "3abbd2ef-532d-46fe-a485-d71cd8409968",
+      "name": "Teacher Agent"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    guardrailsInput: $('Webhook').first().json.body.message,\n    chat_id: $('Webhook').first().json.body.chat_id\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        112,
+        208
+      ],
+      "id": "701d1716-cd1f-4ac0-ab2c-1a1e2a169c3a",
+      "name": "Json Parser"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    guardrailsInput: $('Webhook').first().json.body.message,\n    chat_id: $('Webhook').first().json.body.chat_id\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        112,
+        608
+      ],
+      "id": "a20c1131-48fd-47c5-8c59-1039d5f974d8",
+      "name": "Json Parser1"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.1-2025-11-13",
+          "mode": "list",
+          "cachedResultName": "gpt-5.1-2025-11-13"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        336,
+        832
+      ],
+      "id": "c53a17e6-010f-47e5-853e-420225b32774",
+      "name": "Open AI Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "H39LVEUFVE8Kzzmi",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.1",
+          "mode": "list",
+          "cachedResultName": "gpt-5.1"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        400,
+        224
+      ],
+      "id": "8633fa91-5b4c-4f71-949c-a9733dcaacb3",
+      "name": "Open AI Model 2",
+      "credentials": {
+        "openAiApi": {
+          "id": "H39LVEUFVE8Kzzmi",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "=chat:{{ $json.chat_id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryRedisChat",
+      "typeVersion": 1.5,
+      "position": [
+        528,
+        224
+      ],
+      "id": "9cd9e141-39bb-46f2-b914-fe2962b737d1",
+      "name": "Memory",
+      "credentials": {
+        "redis": {
+          "id": "7YUPbosbukknKTzC",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "=chat:{{ $json.chat_id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryRedisChat",
+      "typeVersion": 1.5,
+      "position": [
+        464,
+        832
+      ],
+      "id": "378f33ca-3ccf-4c92-8480-2a424bb58c46",
+      "name": "Memory 2",
+      "credentials": {
+        "redis": {
+          "id": "7YUPbosbukknKTzC",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Search Finnish high-school physics textbooks FY1–FY8 and return the most relevant passages with LaTeX intact. Use this before any physics reply or exam creation. Queries must be in Finnish. Results include excerpt text, source title, section path, and passage IDs.",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "physics_docs",
+          "mode": "list",
+          "cachedResultName": "physics_docs"
+        },
+        "topK": 8,
+        "options": {
+          "contentPayloadKey": "text"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        720,
+        832
+      ],
+      "id": "f90afd01-e5a3-4251-b080-09ef8ad367eb",
+      "name": "Book material RAG",
+      "credentials": {
+        "qdrantApi": {
+          "id": "YLmKK1fzQ2bwwViW",
+          "name": "QdrantApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Search Finnish physics textbooks (FY1-FY8) for concepts, formulas, and explanations. Use when answering physics questions in Finnish. Returns relevant excerpts with LaTeX formulas.",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "physics_docs",
+          "mode": "list",
+          "cachedResultName": "physics_docs"
+        },
+        "topK": 8,
+        "options": {
+          "contentPayloadKey": "text"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        656,
+        224
+      ],
+      "id": "53a25e73-ba8d-4bab-8e6d-41d8314baca4",
+      "name": "Book material RAG 2",
+      "credentials": {
+        "qdrantApi": {
+          "id": "YLmKK1fzQ2bwwViW",
+          "name": "QdrantApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Webhook').item.json.body.webhook_url }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "answer",
+              "value": "={{ $json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        880,
+        0
+      ],
+      "id": "a694b7c3-6264-475a-adb8-cc4d75224d5e",
+      "name": "Answer To Website"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Webhook').item.json.body.webhook_url }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "answer",
+              "value": "={{ $json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        880,
+        608
+      ],
+      "id": "f9f01667-a74a-4969-994e-8997ea5c574c",
+      "name": "Answer To Website 2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d93bd192-829e-48a4-bbc4-34cad3ca73f7",
+              "leftValue": "={{ $json.output.route }}",
+              "rightValue": "TEACHER",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -112,
+        512
+      ],
+      "id": "580a15aa-0e00-486a-a9ca-cd656bce5799",
+      "name": "Teacher or Exam"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "=gpt-4.1-mini-2025-04-14",
+          "mode": "id"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -464,
+        736
+      ],
+      "id": "c77e47ce-01b5-4482-81bd-a11ba1509d43",
+      "name": "OpenAI Model 3",
+      "credentials": {
+        "openAiApi": {
+          "id": "H39LVEUFVE8Kzzmi",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"route\": \"EXAM\",\n  \"reason\": \"User wants practice\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -432,
+        1472
+      ],
+      "id": "51250b36-f8d5-4000-b866-434779e849b1",
+      "name": "Output Parser"
+    },
+    {
+      "parameters": {
+        "content": "### send the exam questions to wbeiste so website can display it",
+        "height": 96
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        224,
+        992
+      ],
+      "typeVersion": 1,
+      "id": "ecfefd62-f605-46ed-9ba0-60c74ba0ce3e",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "n8nyti.duckdns.org",
+            "user-agent": "python-requests/2.31.0",
+            "content-length": "510",
+            "accept": "*/*",
+            "accept-encoding": "gzip, deflate",
+            "content-type": "application/json",
+            "via": "1.1 Caddy",
+            "x-forwarded-for": "46.62.255.51",
+            "x-forwarded-host": "n8nyti.duckdns.org",
+            "x-forwarded-proto": "https"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "message": "Kaksi pistemäistä aaltolähdettä värähtelee samassa vaiheessa ja synnyttää vedenpintaan interferenssikuvion. a) Määritä matkaero, jolla aallot vahvistavat toisiaan. b) Määritä matkaero, jolla aallot kumoavat toisensa. Vastaa aallonpituuden \\lambda avulla.",
+            "webhook_url": "http://gerardo-fogyish-modularly.ngrok-free.dev/api/ai-webhook/f1f3434a-9a80-49f5-afe7-bfb5157fafcd/",
+            "chat_id": "f1f3434a-9a80-49f5-afe7-bfb5157fafcd"
+          },
+          "webhookUrl": "https://n8nyti.duckdns.org/webhook/Ai_teacher",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Book material RAG 2",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "exam generator": {
+      "ai_tool": [
+        [
+          {
+            "node": "Exam Maker",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI1": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Book material RAG",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Memory Manager": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Router": {
+      "main": [
+        [
+          {
+            "node": "Teacher or Exam",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Chat Memory Manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis Chat Memory2": {
+      "ai_memory": [
+        [
+          {
+            "node": "Chat Memory Manager",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Exam Maker": {
+      "main": [
+        [
+          {
+            "node": "Answer To Website 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Teacher Agent": {
+      "main": [
+        [
+          {
+            "node": "Answer To Website",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Json Parser": {
+      "main": [
+        [
+          {
+            "node": "Teacher Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Json Parser1": {
+      "main": [
+        [
+          {
+            "node": "Exam Maker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Open AI Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Exam Maker",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Open AI Model 2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Teacher Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Teacher Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memory 2": {
+      "ai_memory": [
+        [
+          {
+            "node": "Exam Maker",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Book material RAG": {
+      "ai_tool": [
+        [
+          {
+            "node": "Exam Maker",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Book material RAG 2": {
+      "ai_tool": [
+        [
+          {
+            "node": "Teacher Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Teacher or Exam": {
+      "main": [
+        [
+          {
+            "node": "Json Parser",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Json Parser1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Model 3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Router",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Output Parser": {
+      "ai_outputParser": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "03443263-bea4-4848-9d4e-a38bfb282427",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d6ed0a84650a5d574f83f71be316e5c5efb58d461cd0ff570e813904c895ca09"
+  },
+  "id": "0qoppS5TXmTZMX2a",
+  "tags": []
+}
